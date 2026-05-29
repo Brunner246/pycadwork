@@ -32,7 +32,7 @@ def discover_covers(ids: Iterable[int] | None = None) -> list[Aggregate]:
     elements = cadwork.elements
 
     mode = grouping.get_element_grouping_type()
-    eids = list(ids) if ids is not None else elements.get_active_identifiable_element_ids()
+    eids: Iterable[int] = list(ids) if ids is not None else elements.get_active_identifiable_element_ids()
 
     read_key = attrs.get_group if mode is GroupingMode.GROUP else attrs.get_subgroup
 
