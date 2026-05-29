@@ -1,0 +1,27 @@
+[project]
+name = "pycadwork"
+version = "0.1.0"
+description = "OOP layer over cwapi3d (cadwork 3D Python API)"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "cwapi3d>=33",
+    "rtree>=1.4.1",
+]
+
+[project.optional-dependencies]
+cadwork = ["cwapi3d>=33"]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pycadwork"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
