@@ -1,4 +1,5 @@
 """Opening create + factory round-trip (dispatch precedence over Plate)."""
+
 from __future__ import annotations
 
 from pycadwork import AxisPoints, Opening, PanelSection, Plate, Point3D, from_id

@@ -6,6 +6,7 @@ priority via ``@register_element`` at its definition site; see
 :mod:`pycadwork.element.registry` for the priority bands and why aggregates are
 checked before primitives.
 """
+
 from __future__ import annotations
 
 import warnings

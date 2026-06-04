@@ -100,7 +100,12 @@ class TestAccessors:
         p = Plane3D.from_point_and_normal(Point3D(0.0, 0.0, 5.0), Vector3D.unit_z())
         coeff = p.coefficients()
         on_plane = Point3D(3.0, 7.0, 5.0)
-        val = coeff[0] * on_plane.x + coeff[1] * on_plane.y + coeff[2] * on_plane.z + coeff[3]
+        val = (
+            coeff[0] * on_plane.x
+            + coeff[1] * on_plane.y
+            + coeff[2] * on_plane.z
+            + coeff[3]
+        )
         assert val == pytest.approx(0.0)
 
     def test_normal_is_always_unit_vector(self):
@@ -325,13 +330,17 @@ class TestLineIntersection:
     def test_intersect_line_parameter_vertical_ray(self):
         """t = n.(P0-linePoint) / n.dir = -2 / -1 = 2."""
         plane = Plane3D.from_default()
-        t = plane.intersect_line_parameter(Point3D(0.0, 0.0, 2.0), Vector3D(0.0, 0.0, -1.0))
+        t = plane.intersect_line_parameter(
+            Point3D(0.0, 0.0, 2.0), Vector3D(0.0, 0.0, -1.0)
+        )
         assert t is not None
         assert t == pytest.approx(2.0)
 
     def test_intersect_line_parameter_parallel_none(self):
         plane = Plane3D.from_default()
-        t = plane.intersect_line_parameter(Point3D(0.0, 0.0, 1.0), Vector3D(1.0, 0.0, 0.0))
+        t = plane.intersect_line_parameter(
+            Point3D(0.0, 0.0, 1.0), Vector3D(1.0, 0.0, 0.0)
+        )
         assert t is None
 
 

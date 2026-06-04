@@ -39,7 +39,6 @@ import pytest
 
 from pycadwork.geometry import Point3D, Vector3D
 
-
 # ==========================================================================
 # Construction
 # ==========================================================================
@@ -173,7 +172,9 @@ class TestDistance:
 
     def test_3d_pythagorean_triple(self):
         """|(0,0,0) - (1,2,2)| = 3."""
-        assert Point3D.origin().distance_to(Point3D(1.0, 2.0, 2.0)) == pytest.approx(3.0)
+        assert Point3D.origin().distance_to(Point3D(1.0, 2.0, 2.0)) == pytest.approx(
+            3.0
+        )
 
     def test_symmetric(self):
         a = Point3D(1.0, 2.0, 3.0)

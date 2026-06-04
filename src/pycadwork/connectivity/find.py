@@ -1,4 +1,5 @@
 """Find the elements that connect (touch or intersect) a given element."""
+
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable

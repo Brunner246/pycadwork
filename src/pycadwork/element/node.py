@@ -1,4 +1,5 @@
 """Minimal wrappers for primitive elements: Node, Line."""
+
 from __future__ import annotations
 
 from typing import Self

@@ -8,6 +8,7 @@ Tests swap in a fake by monkeypatching the module attribute::
 
     monkeypatch.setattr(pycadwork.cadwork_adapter, "cadwork", FakeCadworkAdapter())
 """
+
 from __future__ import annotations
 
 from pycadwork.cadwork_adapter._facade import CadworkAdapter

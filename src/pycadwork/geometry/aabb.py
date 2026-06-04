@@ -66,7 +66,7 @@ class AxisAlignedBoundingBox:
             raise ValueError(
                 "from_min_max: min_point must be <= max_point on every axis"
             )
-        
+
         return AxisAlignedBoundingBox._from_points(min_point, max_point)
 
     @classmethod

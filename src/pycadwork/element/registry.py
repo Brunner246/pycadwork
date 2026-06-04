@@ -16,6 +16,7 @@ the cover modules import :class:`Element` from this package, their import is
 deferred to :func:`ensure_registered` (called once by ``from_id``) — the same
 circular-import dodge the old static table used.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -78,9 +79,7 @@ class ElementRegistry:
 REGISTRY = ElementRegistry()
 
 
-def register_element(
-    predicate: Predicate, *, priority: int
-) -> Callable[[_T], _T]:
+def register_element(predicate: Predicate, *, priority: int) -> Callable[[_T], _T]:
     """Class decorator: register the decorated ``Element`` subclass for dispatch.
 
     ``predicate`` receives an :class:`ElementTypeSnapshot`; ``priority`` is one of

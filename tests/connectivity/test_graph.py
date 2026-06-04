@@ -1,4 +1,5 @@
 """Tests for pycadwork.ConnectionGraph (adjacency + components)."""
+
 from __future__ import annotations
 
 import pytest

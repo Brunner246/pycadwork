@@ -1,4 +1,5 @@
 """Wall: an aggregate flagged as framed/solid/log wall."""
+
 from __future__ import annotations
 
 from pycadwork.cadwork_adapter.types import WALL_KINDS

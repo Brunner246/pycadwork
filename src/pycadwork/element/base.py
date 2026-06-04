@@ -19,6 +19,7 @@ All component reads are live queries against the active backend; no
 caching except the immutable :class:`ElementTypeSnapshot` held on
 :class:`Element` itself.
 """
+
 from __future__ import annotations
 
 from typing import Generic, TypeVar, cast

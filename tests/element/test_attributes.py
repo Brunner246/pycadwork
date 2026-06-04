@@ -1,6 +1,7 @@
 """Round-trip the attribute surface (cadwork_guid, additional_data,
 assembly_number, user_attribute) against the fake backend, via ``beam.attrs``.
 """
+
 from __future__ import annotations
 
 from pycadwork import AxisPoints, Beam, Point3D, RectSection

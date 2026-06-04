@@ -1,4 +1,5 @@
 """Beam: rectangular / circular / square / polygon-section linear members."""
+
 from __future__ import annotations
 
 from enum import Enum

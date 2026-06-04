@@ -1,4 +1,5 @@
 """Factory dispatch: from_id wraps each ID in the most specific subclass."""
+
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -81,18 +82,14 @@ def test_from_id_returns_connector_axis_over_beam():
 
 
 def test_from_id_returns_auxiliary_for_auxiliary_element():
-    surf = Surface.create(
-        [Point3D(0, 0, 0), Point3D(1000, 0, 0), Point3D(0, 1000, 0)]
-    )
+    surf = Surface.create([Point3D(0, 0, 0), Point3D(1000, 0, 0), Point3D(0, 1000, 0)])
     aux = AuxiliaryElement.from_surface_extrusion(surf, Vector3D(0, 0, 100))
     wrapped = from_id(aux.id)
     assert isinstance(wrapped, AuxiliaryElement)
 
 
 def test_from_id_returns_surface_for_surface():
-    surf = Surface.create(
-        [Point3D(0, 0, 0), Point3D(1000, 0, 0), Point3D(0, 1000, 0)]
-    )
+    surf = Surface.create([Point3D(0, 0, 0), Point3D(1000, 0, 0), Point3D(0, 1000, 0)])
     assert isinstance(from_id(surf.id), Surface)
 
 

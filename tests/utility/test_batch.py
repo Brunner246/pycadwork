@@ -1,4 +1,5 @@
 """batch_apply against FakeCadworkAdapter — one adapter call per attribute."""
+
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -17,7 +18,9 @@ def _make_beam() -> Beam:
 
 def test_single_attribute_makes_one_call(fake_cadwork):
     beams = [_make_beam(), _make_beam(), _make_beam()]
-    with patch.object(fake_cadwork.attributes, "set_group", wraps=fake_cadwork.attributes.set_group) as spy:
+    with patch.object(
+        fake_cadwork.attributes, "set_group", wraps=fake_cadwork.attributes.set_group
+    ) as spy:
         batch_apply(beams, group="frame")
 
     spy.assert_called_once_with([b.id for b in beams], "frame")
@@ -29,9 +32,15 @@ def test_multiple_attributes_one_call_each(fake_cadwork):
     beams = [_make_beam(), _make_beam()]
     ids = [b.id for b in beams]
     attrs = fake_cadwork.attributes
-    with patch.object(attrs, "set_group", wraps=attrs.set_group) as group_spy, \
-         patch.object(attrs, "set_material_name", wraps=attrs.set_material_name) as material_spy, \
-         patch.object(attrs, "set_production_number", wraps=attrs.set_production_number) as prod_spy:
+    with (
+        patch.object(attrs, "set_group", wraps=attrs.set_group) as group_spy,
+        patch.object(
+            attrs, "set_material_name", wraps=attrs.set_material_name
+        ) as material_spy,
+        patch.object(
+            attrs, "set_production_number", wraps=attrs.set_production_number
+        ) as prod_spy,
+    ):
         batch_apply(beams, group="frame", material_name="Pine", production_number=42)
 
     group_spy.assert_called_once_with(ids, "frame")
@@ -41,8 +50,12 @@ def test_multiple_attributes_one_call_each(fake_cadwork):
 
 def test_empty_iterable_makes_no_adapter_calls(fake_cadwork):
     attrs = fake_cadwork.attributes
-    with patch.object(attrs, "set_group", wraps=attrs.set_group) as group_spy, \
-         patch.object(attrs, "set_material_name", wraps=attrs.set_material_name) as material_spy:
+    with (
+        patch.object(attrs, "set_group", wraps=attrs.set_group) as group_spy,
+        patch.object(
+            attrs, "set_material_name", wraps=attrs.set_material_name
+        ) as material_spy,
+    ):
         batch_apply([], group="frame", material_name="Pine")
 
     group_spy.assert_not_called()
@@ -69,10 +82,18 @@ def test_supports_all_documented_attributes(fake_cadwork):
     ids = [beam.id]
     attrs = fake_cadwork.attributes
     names = [
-        "set_name", "set_group", "set_subgroup", "set_comment",
-        "set_material_name", "set_sku", "set_production_number", "set_part_number",
+        "set_name",
+        "set_group",
+        "set_subgroup",
+        "set_comment",
+        "set_material_name",
+        "set_sku",
+        "set_production_number",
+        "set_part_number",
     ]
-    spies = {name: patch.object(attrs, name, wraps=getattr(attrs, name)) for name in names}
+    spies = {
+        name: patch.object(attrs, name, wraps=getattr(attrs, name)) for name in names
+    }
     entered = {name: spy.__enter__() for name, spy in spies.items()}
     try:
         batch_apply(

@@ -8,6 +8,7 @@ All aggregation logic lives here once and is shared by every subclass.
 Subclasses narrow only the allowed ``CoverKind`` set; they do not duplicate
 child-collection code.
 """
+
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -29,7 +30,7 @@ class Aggregate(Element):
     # ---- kind ----
 
     @property
-    def kind(self) -> CoverKind: #TODO: this can be derived from the element itself!
+    def kind(self) -> CoverKind:  # TODO: this can be derived from the element itself!
         snap = self.cadwork_type
         mapping = {
             CoverKind.FRAMED_WALL: snap.is_framed_wall,

@@ -1,4 +1,5 @@
 """ElementsAdapter: element creation, deletion, type introspection, identification."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -29,6 +30,7 @@ class ElementsAdapter:
     ) -> ElementId:
         import cadwork
         import element_controller
+
         return element_controller.create_rectangular_beam_points(
             section.width,
             section.height,
@@ -42,6 +44,7 @@ class ElementsAdapter:
     ) -> ElementId:
         import cadwork
         import element_controller
+
         return element_controller.create_rectangular_beam_vectors(
             section.width,
             section.height,
@@ -56,6 +59,7 @@ class ElementsAdapter:
     ) -> ElementId:
         import cadwork
         import element_controller
+
         return element_controller.create_circular_beam_points(
             diameter,
             _pt(cadwork, axis.p1),
@@ -63,11 +67,10 @@ class ElementsAdapter:
             _pt(cadwork, axis.p3),
         )
 
-    def create_square_beam_points(
-        self, width: float, axis: AxisPoints
-    ) -> ElementId:
+    def create_square_beam_points(self, width: float, axis: AxisPoints) -> ElementId:
         import cadwork
         import element_controller
+
         return element_controller.create_square_beam_points(
             width,
             _pt(cadwork, axis.p1),
@@ -80,6 +83,7 @@ class ElementsAdapter:
     ) -> ElementId:
         import cadwork
         import element_controller
+
         return element_controller.create_rectangular_panel_points(
             section.width,
             section.thickness,
@@ -93,6 +97,7 @@ class ElementsAdapter:
     ) -> ElementId:
         import cadwork
         import element_controller
+
         return element_controller.create_rectangular_panel_vectors(
             section.width,
             section.thickness,
@@ -102,11 +107,10 @@ class ElementsAdapter:
             cadwork.point_3d(frame.z_dir.x, frame.z_dir.y, frame.z_dir.z),
         )
 
-    def create_drilling_points(
-        self, diameter: float, axis: Segment
-    ) -> ElementId:
+    def create_drilling_points(self, diameter: float, axis: Segment) -> ElementId:
         import cadwork
         import element_controller
+
         return element_controller.create_drilling_points(
             diameter, _pt(cadwork, axis.p1), _pt(cadwork, axis.p2)
         )
@@ -114,11 +118,13 @@ class ElementsAdapter:
     def create_node(self, position: Point3D) -> ElementId:
         import cadwork
         import element_controller
+
         return element_controller.create_node(_pt(cadwork, position))
 
     def create_line_points(self, axis: Segment) -> ElementId:
         import cadwork
         import element_controller
+
         return element_controller.create_line_points(
             _pt(cadwork, axis.p1), _pt(cadwork, axis.p2)
         )
@@ -126,15 +132,13 @@ class ElementsAdapter:
     def create_surface_points(self, points: list[Point3D]) -> ElementId:
         import cadwork
         import element_controller
-        return element_controller.create_surface(
-            [_pt(cadwork, p) for p in points]
-        )
 
-    def create_standard_connector(
-        self, axis: Segment, name: str
-    ) -> ElementId:
+        return element_controller.create_surface([_pt(cadwork, p) for p in points])
+
+    def create_standard_connector(self, axis: Segment, name: str) -> ElementId:
         import cadwork
         import connector_axis_controller
+
         return connector_axis_controller.create_standard_connector(
             _pt(cadwork, axis.p1),
             _pt(cadwork, axis.p2),
@@ -146,18 +150,21 @@ class ElementsAdapter:
     ) -> ElementId:
         import cadwork
         import element_controller
+
         return element_controller.extrude_surface_to_auxiliary_vector(
             surface_eid, _pt(cadwork, vector)
         )
 
     def delete_elements(self, eids: list[ElementId]) -> None:
         import element_controller
+
         element_controller.delete_elements(list(eids))
 
     # ---- type introspection ----
 
     def get_element_type(self, eid: ElementId) -> ElementTypeSnapshot:
         import attribute_controller
+
         t = attribute_controller.get_element_type(eid)
         is_rect = t.is_rectangular_beam()
         is_circ = t.is_circular_beam()
@@ -193,8 +200,10 @@ class ElementsAdapter:
 
     def get_all_identifiable_element_ids(self) -> list[ElementId]:
         import element_controller
+
         return element_controller.get_all_identifiable_element_ids()
 
     def get_active_identifiable_element_ids(self) -> list[ElementId]:
         import element_controller
+
         return element_controller.get_active_identifiable_element_ids()

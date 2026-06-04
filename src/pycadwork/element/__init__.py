@@ -1,4 +1,5 @@
 """Element wrappers — typed views over cadwork IDs."""
+
 from __future__ import annotations
 
 from pycadwork.element.auxiliary import AuxiliaryElement

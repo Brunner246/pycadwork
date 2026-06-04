@@ -1,4 +1,5 @@
 """DisplayRefreshScope + suppressed_display + auto_recreate against FakeCadworkAdapter."""
+
 from __future__ import annotations
 
 import pytest
@@ -139,9 +140,7 @@ def test_auto_recreate_passes_through_args(fake_cadwork):
     @auto_recreate
     def make_drillings(count: int, *, diameter: float) -> list[Drilling]:
         return [
-            Drilling.create(
-                diameter, Segment(Point3D(i, 0, 0), Point3D(i, 0, 100))
-            )
+            Drilling.create(diameter, Segment(Point3D(i, 0, 0), Point3D(i, 0, 100)))
             for i in range(count)
         ]
 

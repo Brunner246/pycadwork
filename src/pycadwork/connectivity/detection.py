@@ -12,6 +12,7 @@ it to catch small designed gaps (e.g. ``tolerance=2.0`` for ~2 mm).
 All cwapi3d access goes through :data:`pycadwork.cadwork_adapter.cadwork`
 to honour the version-isolation seam.
 """
+
 from __future__ import annotations
 
 from pycadwork.cadwork_adapter import cadwork

@@ -17,8 +17,6 @@ The round-trip local_to_world(world_to_local(P)) must equal P.
 
 import math
 
-import pytest
-
 from pycadwork.geometry import Frame3D, Point3D, Vector3D
 
 EPS = 1e-9

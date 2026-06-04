@@ -1,4 +1,5 @@
 """Test fixtures: swap in a FakeCadworkAdapter so tests need no cadwork process."""
+
 from __future__ import annotations
 
 import pytest

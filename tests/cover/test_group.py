@@ -1,4 +1,5 @@
 """Group: siblings-by-grouping-key view, mode-aware."""
+
 from __future__ import annotations
 
 from pycadwork import AxisPoints, Beam, Point3D, RectSection

@@ -4,6 +4,7 @@ As in test_find.py, beams are axis-aligned so their fake-derived boxes are
 ``[x, x+length] x [y, y+width] x [z, z+height]`` and can be made to touch or
 stay apart deterministically.
 """
+
 from __future__ import annotations
 
 from pycadwork import (
@@ -27,9 +28,9 @@ def _beam(x: float, length: float = 100.0) -> Beam:
 
 
 def test_edges_reflect_touching_elements():
-    a = _beam(0)            # [0, 100]
-    b = _beam(100)          # touches a
-    c = _beam(1000)         # far away
+    a = _beam(0)  # [0, 100]
+    b = _beam(100)  # touches a
+    c = _beam(1000)  # far away
 
     g = build_connection_graph([a, b, c])
 
@@ -49,10 +50,10 @@ def test_each_edge_added_once_and_no_self_loops():
 
 
 def test_connected_components_group_touching_assemblies():
-    a = _beam(0)            # [0, 100]
-    b = _beam(100)          # touches a   -> cluster {a, b}
-    c = _beam(1000)         # [1000, 1100]
-    d = _beam(1100)         # touches c   -> cluster {c, d}
+    a = _beam(0)  # [0, 100]
+    b = _beam(100)  # touches a   -> cluster {a, b}
+    c = _beam(1000)  # [1000, 1100]
+    d = _beam(1100)  # touches c   -> cluster {c, d}
 
     g = build_connection_graph([a, b, c, d])
 
@@ -62,7 +63,7 @@ def test_connected_components_group_touching_assemblies():
 
 def test_elements_argument_scopes_the_graph():
     a = _beam(0)
-    b = _beam(100)          # touches a
+    b = _beam(100)  # touches a
     _excluded = _beam(200)  # touches b, but left out of the node set
 
     g = build_connection_graph([a, b])
@@ -73,8 +74,8 @@ def test_elements_argument_scopes_the_graph():
 
 def test_default_builds_over_the_active_model():
     a = _beam(0)
-    b = _beam(100)          # touches a
-    c = _beam(5000)         # isolated
+    b = _beam(100)  # touches a
+    c = _beam(5000)  # isolated
 
     g = build_connection_graph()
 
@@ -85,8 +86,8 @@ def test_default_builds_over_the_active_model():
 
 def test_custom_predicate_builds_a_complete_graph():
     a = _beam(0)
-    b = _beam(1000)         # geometrically disjoint
-    c = _beam(2000)         # geometrically disjoint
+    b = _beam(1000)  # geometrically disjoint
+    c = _beam(2000)  # geometrically disjoint
 
     g = build_connection_graph([a, b, c], connects=lambda _x, _y: True)
 
