@@ -82,9 +82,7 @@ class ElementRegistry:
 REGISTRY = ElementRegistry()
 
 
-def register_element(
-    predicate: Predicate, *, priority: int
-) -> Callable[[_T], _T]:
+def register_element(predicate: Predicate, *, priority: int) -> Callable[[_T], _T]:
     """Class decorator: register the decorated ``Element`` subclass for dispatch.
 
     ``predicate`` receives an :class:`ElementTypeSnapshot`; ``priority`` is one of

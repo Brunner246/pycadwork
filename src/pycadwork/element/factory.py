@@ -6,6 +6,7 @@ priority via ``@register_element`` at its definition site; see
 :mod:`pycadwork.element.registry` for the priority bands and why aggregates are
 checked before primitives.
 """
+
 from __future__ import annotations
 
 import warnings
@@ -14,6 +15,7 @@ from typing import Any
 from pycadwork.cadwork_adapter import cadwork
 from pycadwork.element.base import Element
 from pycadwork.element.registry import REGISTRY
+
 
 def from_id(eid: int) -> Element[Any]:
     """Wrap an existing cadwork element ID in the most specific subclass.

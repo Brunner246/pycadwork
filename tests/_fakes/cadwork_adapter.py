@@ -9,6 +9,7 @@ Behavioural surface is deliberately permissive: it accepts whatever inputs
 the OOP layer sends and remembers them, so tests can round-trip
 (create → read back) without a real CAD kernel.
 """
+
 from __future__ import annotations
 
 import math
@@ -30,7 +31,6 @@ from pycadwork.geometry.specs import (
     RectSection,
     Segment,
 )
-
 
 # ---- vertex / facet view types ----
 
@@ -257,9 +257,7 @@ class FakeElementsAdapter:
         el.width = el.height = diameter
         return el.eid
 
-    def create_square_beam_points(
-        self, width: float, axis: AxisPoints
-    ) -> ElementId:
+    def create_square_beam_points(self, width: float, axis: AxisPoints) -> ElementId:
         snap = ElementTypeSnapshot(is_beam=True, is_rectangular_beam=True)
         el = self._state.alloc(snap)
         _frame_from_three_points(el, axis.p1, axis.p2, axis.p3)
@@ -298,9 +296,7 @@ class FakeElementsAdapter:
         el.volume = section.width * section.thickness * frame.length
         return el.eid
 
-    def create_drilling_points(
-        self, diameter: float, axis: Segment
-    ) -> ElementId:
+    def create_drilling_points(self, diameter: float, axis: Segment) -> ElementId:
         snap = ElementTypeSnapshot(is_drilling=True)
         el = self._state.alloc(snap)
         t1, t2 = _tup(axis.p1), _tup(axis.p2)
@@ -334,12 +330,8 @@ class FakeElementsAdapter:
             el.p1 = _tup(points[0])
         return el.eid
 
-    def create_standard_connector(
-        self, axis: Segment, name: str
-    ) -> ElementId:
-        snap = ElementTypeSnapshot(
-            is_connector_axis=True, is_line=True, is_beam=True
-        )
+    def create_standard_connector(self, axis: Segment, name: str) -> ElementId:
+        snap = ElementTypeSnapshot(is_connector_axis=True, is_line=True, is_beam=True)
         el = self._state.alloc(snap)
         t1, t2 = _tup(axis.p1), _tup(axis.p2)
         el.p1, el.p2 = t1, t2
@@ -355,7 +347,7 @@ class FakeElementsAdapter:
         el = self._state.alloc(snap)
         src = self._state.elements[surface_eid]
         el.p1 = src.p1
-        el.length = math.sqrt(vector.x ** 2 + vector.y ** 2 + vector.z ** 2)
+        el.length = math.sqrt(vector.x**2 + vector.y**2 + vector.z**2)
         return el.eid
 
     def delete_elements(self, eids: list[ElementId]) -> None:
@@ -467,9 +459,7 @@ class FakeAttributesAdapter:
     def get_user_attribute(self, eid: ElementId, index: int) -> str:
         return self._state.elements[eid].user_attributes.get(index, "")
 
-    def set_user_attribute(
-        self, eids: list[ElementId], index: int, value: str
-    ) -> None:
+    def set_user_attribute(self, eids: list[ElementId], index: int, value: str) -> None:
         for eid in eids:
             self._state.elements[eid].user_attributes[index] = value
 
@@ -479,7 +469,8 @@ class FakeAttributesAdapter:
         for eid in eids:
             self._state.elements[eid].snapshot = replace(
                 self._state.elements[eid].snapshot,
-                is_wall=kind in {CoverKind.FRAMED_WALL, CoverKind.SOLID_WALL, CoverKind.LOG_WALL},
+                is_wall=kind
+                in {CoverKind.FRAMED_WALL, CoverKind.SOLID_WALL, CoverKind.LOG_WALL},
                 is_floor=kind in {CoverKind.FRAMED_FLOOR, CoverKind.SOLID_FLOOR},
                 is_roof=kind in {CoverKind.FRAMED_ROOF, CoverKind.SOLID_ROOF},
                 is_framed_wall=kind is CoverKind.FRAMED_WALL,
@@ -589,9 +580,7 @@ class FakeGroupingAdapter:
     def filter_elements_by_group(self, group: str) -> list[ElementId]:
         if not group:
             return []
-        return [
-            eid for eid, el in self._state.elements.items() if el.group == group
-        ]
+        return [eid for eid, el in self._state.elements.items() if el.group == group]
 
     def filter_elements_by_subgroup(self, subgroup: str) -> list[ElementId]:
         if not subgroup:

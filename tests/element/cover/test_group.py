@@ -1,10 +1,12 @@
 """Group: siblings-by-grouping-key view, mode-aware."""
+
 from __future__ import annotations
 
 from pycadwork import AxisPoints, Beam, Point3D, RectSection
 from pycadwork.cadwork_adapter import cadwork
 from pycadwork.cadwork_adapter.types import GroupingMode
 from pycadwork.element.cover.group import Group
+
 
 def _beam(name: str) -> Beam:
     b = Beam.create_rectangular(
