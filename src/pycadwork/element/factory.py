@@ -13,8 +13,7 @@ from typing import Any
 
 from pycadwork.cadwork_adapter import cadwork
 from pycadwork.element.base import Element
-from pycadwork.element.registry import REGISTRY, ensure_registered
-
+from pycadwork.element.registry import REGISTRY
 
 def from_id(eid: int) -> Element[Any]:
     """Wrap an existing cadwork element ID in the most specific subclass.
@@ -23,8 +22,6 @@ def from_id(eid: int) -> Element[Any]:
     matches — that means cadwork has a type we haven't taught the OOP layer
     about yet.
     """
-    ensure_registered()
-
     snap = cadwork.elements.get_element_type(int(eid))
     cls = REGISTRY.resolve(snap)
     if cls is None:

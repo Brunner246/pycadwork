@@ -23,9 +23,9 @@ from collections.abc import Callable, Iterable
 
 from pycadwork.cadwork_adapter import cadwork
 from pycadwork.cadwork_adapter.types import GroupingMode
-from pycadwork.cover.aggregate import Aggregate
-from pycadwork.cover.group import Group
 from pycadwork.element.base import Element
+from pycadwork.element.cover.aggregate import Aggregate
+from pycadwork.element.cover.group import Group
 from pycadwork.element.factory import from_id
 
 

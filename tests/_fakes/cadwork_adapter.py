@@ -144,6 +144,8 @@ class _FakeElement:
     cadwork_guid: str = ""
     additional_data: str = ""
     assembly_number: str = ""
+    building: str = ""
+    storey: str = ""
     user_attributes: dict[int, str] = field(default_factory=dict)
     p1: PointTuple = (0.0, 0.0, 0.0)
     p2: PointTuple = (0.0, 0.0, 0.0)
@@ -165,6 +167,8 @@ class FakeState:
 
     elements: dict[ElementId, _FakeElement] = field(default_factory=dict)
     grouping_mode: GroupingMode = GroupingMode.GROUP
+    # building -> storey -> absolute Z elevation of the storey base plane
+    storeys: dict[str, dict[str, float]] = field(default_factory=dict)
     _next_id: ElementId = 1
     _next_guid: int = 1
     # behavioural observables — kept (small, exercised by display tests)
@@ -750,6 +754,45 @@ class FakeProjectAdapter:
         return list(self._state.project_data.keys())
 
 
+class FakeBimAdapter:
+    def __init__(self, state: FakeState) -> None:
+        self._state = state
+
+    # ---- per-element assignment ----
+
+    def get_building(self, eid: ElementId) -> str:
+        return self._state.elements[eid].building
+
+    def get_storey(self, eid: ElementId) -> str:
+        return self._state.elements[eid].storey
+
+    def set_building_and_storey(
+        self, eids: list[ElementId], building: str, storey: str
+    ) -> None:
+        for eid in eids:
+            el = self._state.elements[eid]
+            el.building = building
+            el.storey = storey
+
+    # ---- registry enumeration ----
+
+    def get_all_buildings(self) -> list[str]:
+        return list(self._state.storeys.keys())
+
+    def get_all_storeys(self, building: str) -> list[str]:
+        # Deterministic: sorted ascending by elevation.
+        registry = self._state.storeys.get(building, {})
+        return sorted(registry, key=lambda name: registry[name])
+
+    # ---- storey elevation ----
+
+    def get_storey_height(self, building: str, storey: str) -> float:
+        return self._state.storeys[building][storey]
+
+    def set_storey_height(self, building: str, storey: str, height: float) -> None:
+        self._state.storeys.setdefault(building, {})[storey] = height
+
+
 # ---- facade ----
 
 
@@ -764,6 +807,7 @@ class FakeCadworkAdapter:
         "grouping",
         "display",
         "project",
+        "bim",
     )
 
     def __init__(self) -> None:
@@ -774,3 +818,4 @@ class FakeCadworkAdapter:
         self.grouping = FakeGroupingAdapter(self.state)
         self.display = FakeDisplayAdapter(self.state)
         self.project = FakeProjectAdapter(self.state)
+        self.bim = FakeBimAdapter(self.state)

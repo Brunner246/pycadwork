@@ -15,8 +15,8 @@ from typing import Any, ClassVar, TypeVar
 
 from pycadwork.cadwork_adapter import cadwork
 from pycadwork.cadwork_adapter.types import CoverKind, GroupingMode
-from pycadwork.cover.group import Group
 from pycadwork.element.base import Element
+from pycadwork.element.cover.group import Group
 
 E = TypeVar("E", bound="Element[Any]")
 

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pycadwork.cadwork_adapter.types import ROOF_KINDS
-from pycadwork.cover.aggregate import Aggregate
+from pycadwork.element.cover.aggregate import Aggregate
 from pycadwork.element.registry import AGGREGATE, register_element
 
 

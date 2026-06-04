@@ -8,7 +8,6 @@ from pycadwork.element.registry import (
     PRIMITIVE,
     SPECIAL,
     ElementRegistry,
-    ensure_registered,
 )
 
 
@@ -68,13 +67,16 @@ def test_resolve_resorts_after_late_registration():
     assert reg.resolve(ElementTypeSnapshot(is_beam=True, is_wall=True)) is _Wall
 
 
-def test_ensure_registered_is_idempotent():
+def test_aggregates_self_register_on_import():
+    # Importing pycadwork.element eagerly pulls in the element.cover subpackage,
+    # so the shared REGISTRY resolves wall/floor/roof snapshots to the typed
+    # aggregates with no explicit bootstrap call.
+    from pycadwork.element.cover import Roof, Slab, Wall
     from pycadwork.element.registry import REGISTRY
 
-    ensure_registered()
-    count = len(REGISTRY._entries)
-    ensure_registered()
-    assert len(REGISTRY._entries) == count
+    assert REGISTRY.resolve(ElementTypeSnapshot(is_framed_wall=True)) is Wall
+    assert REGISTRY.resolve(ElementTypeSnapshot(is_framed_floor=True)) is Slab
+    assert REGISTRY.resolve(ElementTypeSnapshot(is_framed_roof=True)) is Roof
 
 
 def test_priority_bands_are_strictly_ordered():

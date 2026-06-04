@@ -8,9 +8,16 @@ agnostic to any specific cwapi3d version.
 """
 from __future__ import annotations
 
+from pycadwork.building import (
+    BuildingName,
+    Storey,
+    StoreyAssigner,
+    StoreyAssignment,
+    StoreyName,
+    StoreyStack,
+)
 from pycadwork.cadwork_adapter.types import CoverKind, GroupingMode
 from pycadwork.connectivity import ConnectionGraph, build_connection_graph, find_connected
-from pycadwork.cover import Aggregate, CoverBuilder, Group, Roof, Slab, Wall, discover_covers
 from pycadwork.document import Document, ProjectInfo
 from pycadwork.element import (
     REGISTRY,
@@ -30,6 +37,17 @@ from pycadwork.element import (
     Surface,
     from_id,
     register_element,
+)
+from pycadwork.element.cover import (
+    Aggregate,
+    CoverAssigner,
+    CoverAssignment,
+    CoverBuilder,
+    Group,
+    Roof,
+    Slab,
+    Wall,
+    discover_covers,
 )
 from pycadwork.geometry import (
     AxisAlignedBoundingBox,
@@ -70,8 +88,11 @@ __all__ = [
     "AxisPoints",
     "Beam",
     "Brep",
+    "BuildingName",
     "ConnectionGraph",
     "ConnectorAxis",
+    "CoverAssigner",
+    "CoverAssignment",
     "CoverBuilder",
     "CoverKind",
     "CrossSection",
@@ -103,6 +124,11 @@ __all__ = [
     "Slab",
     "SpatialIndex3D",
     "SpatialQuery3D",
+    "Storey",
+    "StoreyAssigner",
+    "StoreyAssignment",
+    "StoreyName",
+    "StoreyStack",
     "Surface",
     "Vector3D",
     "Wall",

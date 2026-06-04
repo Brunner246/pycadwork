@@ -111,14 +111,14 @@ types crossing the seam are the aliases and value objects in
 
 ### Package layout
 
-| Module | Responsibility |
-| --- | --- |
-| `pycadwork.cadwork_adapter` | The single seam to cwapi3d. Five sub-adapters (`elements`, `attributes`, `geometry`, `grouping`, `display`) plus the stable types crossing it. |
-| `pycadwork.element` | Typed element wrappers — `Beam`, `Plate`, `Drilling`, `Node`, `Line`, `Surface`, `Opening`, `ConnectorAxis`, `AuxiliaryElement` — plus the dispatch registry and `from_id`. |
-| `pycadwork.cover` | Cover objects (`Wall`, `Slab`, `Roof`), the grouping-driven `Aggregate` base, `Group`, the fluent `CoverBuilder`, and `discover_covers`. |
-| `pycadwork.geometry` | Pure geometry value-types: `Point3D`, `Vector3D`, `Frame3D`, `Plane3D`, `Line3D`, `Segment3D`, `Loop`, `Face`, `Brep`, AABB/OBB, the R-tree spatial index, and creation specs. |
-| `pycadwork.connectivity` | `find_connected` and `build_connection_graph` / `ConnectionGraph` — which elements touch or intersect, and the whole-model contact graph. |
-| `pycadwork.utility` | Cross-cutting helpers: `DisplayRefreshScope`, `batch_apply`, and `auto_*` decorators. |
+| Module                      | Responsibility                                                                                                                                                                 |
+|-----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `pycadwork.cadwork_adapter` | The single seam to cwapi3d. Five sub-adapters (`elements`, `attributes`, `geometry`, `grouping`, `display`) plus the stable types crossing it.                                 |
+| `pycadwork.element`         | Typed element wrappers — `Beam`, `Plate`, `Drilling`, `Node`, `Line`, `Surface`, `Opening`, `ConnectorAxis`, `AuxiliaryElement` — plus the dispatch registry and `from_id`.    |
+| `pycadwork.element.cover`   | Cover objects (`Wall`, `Slab`, `Roof`), the grouping-driven `Aggregate` base, `Group`, the fluent `CoverBuilder`, and `discover_covers`.                                       |
+| `pycadwork.geometry`        | Pure geometry value-types: `Point3D`, `Vector3D`, `Frame3D`, `Plane3D`, `Line3D`, `Segment3D`, `Loop`, `Face`, `Brep`, AABB/OBB, the R-tree spatial index, and creation specs. |
+| `pycadwork.connectivity`    | `find_connected` and `build_connection_graph` / `ConnectionGraph` — which elements touch or intersect, and the whole-model contact graph.                                      |
+| `pycadwork.utility`         | Cross-cutting helpers: `DisplayRefreshScope`, `batch_apply`, and `auto_*` decorators.                                                                                          |
 
 The top-level namespace re-exports the full public surface, so you can write
 `from pycadwork import Beam, Wall, CoverBuilder, Point3D` without knowing the

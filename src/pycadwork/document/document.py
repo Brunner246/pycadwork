@@ -10,8 +10,8 @@ A ``Document`` does two jobs:
   :meth:`elements`, :meth:`active`, :meth:`elements_of`, :meth:`get`,
   :meth:`delete` and :meth:`covers` all query the backend at call time and wrap
   ids via :func:`~pycadwork.element.factory.from_id`. There is no cached state,
-  in keeping with :class:`Element` / :class:`~pycadwork.cover.group.Group` /
-  :func:`~pycadwork.cover.discover.discover_covers`, which are all live views.
+  in keeping with :class:`Element` / :class:`~pycadwork.element.cover.group.Group` /
+  :func:`~pycadwork.element.cover.discover.discover_covers`, which are all live views.
 
 There is exactly one active project, so ``Document()`` always refers to it;
 construction takes no arguments.
@@ -23,10 +23,10 @@ from collections.abc import Iterable
 from typing import Any, TypeVar
 
 from pycadwork.cadwork_adapter import cadwork
-from pycadwork.cover.aggregate import Aggregate
-from pycadwork.cover.discover import discover_covers
 from pycadwork.document.project import ProjectInfo
 from pycadwork.element.base import Element
+from pycadwork.element.cover.aggregate import Aggregate
+from pycadwork.element.cover.discover import discover_covers
 from pycadwork.element.factory import from_id
 
 # ``Element[Any]`` not bare ``Element``: ``Element`` is generic and invariant in
