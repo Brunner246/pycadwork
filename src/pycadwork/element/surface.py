@@ -1,4 +1,5 @@
 """Surface: cadwork surface element built from a polygon of points."""
+
 from __future__ import annotations
 
 from typing import Self

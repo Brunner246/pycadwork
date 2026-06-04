@@ -32,7 +32,9 @@ def check_point(a: Point3D, b: Point3D, eps: float = EPS) -> None:
 class TestFactoryConstruction:
     def test_from_point_and_direction_normalizes(self):
         """A non-unit direction (0,0,5) must be normalized to (0,0,1)."""
-        line = Line3D.from_point_and_direction(Point3D.origin(), Vector3D(0.0, 0.0, 5.0))
+        line = Line3D.from_point_and_direction(
+            Point3D.origin(), Vector3D(0.0, 0.0, 5.0)
+        )
         assert line.direction == Vector3D.unit_z()
 
     def test_from_point_and_direction_preserves_point(self):
@@ -62,7 +64,9 @@ class TestFactoryConstruction:
 
 class TestAccessors:
     def test_direction_is_unit_vector(self):
-        line = Line3D.from_point_and_direction(Point3D.origin(), Vector3D(3.0, 4.0, 0.0))
+        line = Line3D.from_point_and_direction(
+            Point3D.origin(), Vector3D(3.0, 4.0, 0.0)
+        )
         assert line.direction.magnitude() == pytest.approx(1.0)
 
 
@@ -73,7 +77,9 @@ class TestAccessors:
 
 class TestParametricEvaluation:
     def test_point_at_zero_returns_reference_point(self):
-        line = Line3D.from_point_and_direction(Point3D(1.0, 2.0, 3.0), Vector3D.unit_x())
+        line = Line3D.from_point_and_direction(
+            Point3D(1.0, 2.0, 3.0), Vector3D.unit_x()
+        )
         check_point(line.point_at(0.0), Point3D(1.0, 2.0, 3.0))
 
     def test_point_at_advances_along_direction(self):
@@ -86,7 +92,9 @@ class TestParametricEvaluation:
         check_point(line.point_at(-2.0), Point3D(-2.0, 0.0, 0.0))
 
     def test_parameter_at_reference_point_is_zero(self):
-        line = Line3D.from_point_and_direction(Point3D(1.0, 2.0, 3.0), Vector3D.unit_x())
+        line = Line3D.from_point_and_direction(
+            Point3D(1.0, 2.0, 3.0), Vector3D.unit_x()
+        )
         assert line.parameter_at(Point3D(1.0, 2.0, 3.0)) == pytest.approx(0.0)
 
     def test_parameter_at_round_trip(self):
@@ -121,7 +129,9 @@ class TestProjection:
         Projection scalar = (1,0,0) . (1,1,0)/sqrt(2) = 1/sqrt(2).
         Foot = 1/sqrt(2) * (1,1,0)/sqrt(2) = (0.5, 0.5, 0).
         """
-        line = Line3D.from_point_and_direction(Point3D.origin(), Vector3D(1.0, 1.0, 0.0))
+        line = Line3D.from_point_and_direction(
+            Point3D.origin(), Vector3D(1.0, 1.0, 0.0)
+        )
         check_point(line.project_point(Point3D(1.0, 0.0, 0.0)), Point3D(0.5, 0.5, 0.0))
 
     def test_closest_point_equals_project_point(self):
@@ -149,11 +159,15 @@ class TestDistance:
     def test_distance_3d_offset(self):
         """X-axis; (3,4,12) -> sqrt(4^2 + 12^2) = sqrt(160)."""
         line = Line3D.from_point_and_direction(Point3D.origin(), Vector3D.unit_x())
-        assert line.distance_to_point(Point3D(3.0, 4.0, 12.0)) == pytest.approx(math.sqrt(160.0))
+        assert line.distance_to_point(Point3D(3.0, 4.0, 12.0)) == pytest.approx(
+            math.sqrt(160.0)
+        )
 
     def test_distance_squared_avoids_sqrt(self):
         line = Line3D.from_point_and_direction(Point3D.origin(), Vector3D.unit_x())
-        assert line.distance_squared_to_point(Point3D(3.0, 4.0, 12.0)) == pytest.approx(160.0)
+        assert line.distance_squared_to_point(Point3D(3.0, 4.0, 12.0)) == pytest.approx(
+            160.0
+        )
 
 
 # ==========================================================================

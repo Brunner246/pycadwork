@@ -10,6 +10,7 @@ are pure-Python helpers that remove boilerplate from the wrapper classes:
 * :func:`deprecated` — emit a ``DeprecationWarning`` on call; the package will
   rename and relocate APIs as it tracks cwapi3d versions.
 """
+
 from __future__ import annotations
 
 import warnings

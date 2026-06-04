@@ -1,4 +1,5 @@
 """OrientedElement: Plate's axis_frame / thickness alias / obb."""
+
 from __future__ import annotations
 
 import math

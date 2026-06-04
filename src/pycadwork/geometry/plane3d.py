@@ -84,7 +84,11 @@ class Plane3D:
 
     def d(self) -> float:
         """Return the d coefficient: d = -n . P0."""
-        return -(self._normal.x * self._point.x + self._normal.y * self._point.y + self._normal.z * self._point.z)
+        return -(
+            self._normal.x * self._point.x
+            + self._normal.y * self._point.y
+            + self._normal.z * self._point.z
+        )
 
     def coefficients(self) -> tuple[float, float, float, float]:
         return (self._normal.x, self._normal.y, self._normal.z, self.d())
@@ -154,7 +158,9 @@ class Plane3D:
         cos_angle = max(-1.0, min(1.0, cos_angle))
         return math.acos(abs(cos_angle))
 
-    def distance_to_plane(self, other: Plane3D, tolerance: float = 1e-10) -> float | None:
+    def distance_to_plane(
+        self, other: Plane3D, tolerance: float = 1e-10
+    ) -> float | None:
         if not self.is_parallel_to(other, tolerance):
             return None
         return abs(self.signed_distance_to(other._point))
@@ -163,7 +169,9 @@ class Plane3D:
     # Line/Ray intersection
     # ------------------------------------------------------------------
 
-    def intersect_line_parameter(self, line_point: Point3D, line_dir: Vector3D) -> float | None:
+    def intersect_line_parameter(
+        self, line_point: Point3D, line_dir: Vector3D
+    ) -> float | None:
         denominator = self._normal.dot(line_dir)
         if abs(denominator) < 1e-15:
             return None

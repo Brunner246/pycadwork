@@ -5,6 +5,7 @@ These aliases and value types are the *only* shapes the rest of ``pycadwork``
 ever sees when talking to the adapter. The cwapi3d sub-adapters translate
 between these and the live cadwork objects on every call.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

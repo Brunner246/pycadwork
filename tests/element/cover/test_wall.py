@@ -1,4 +1,5 @@
 """Wall: children, children_of, add_child/remove_child/replace_children, set_kind."""
+
 from __future__ import annotations
 
 import pytest

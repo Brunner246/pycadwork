@@ -3,6 +3,7 @@
 Centralises the point-tuple conversions and the GroupingMode-to-cadwork-enum
 mapping so the sub-adapters stay focused on their own surface.
 """
+
 from __future__ import annotations
 
 from typing import Any

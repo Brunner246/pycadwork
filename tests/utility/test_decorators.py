@@ -1,4 +1,5 @@
 """auto_repr / auto_eq / auto_hash / deprecated — pure-Python decorators."""
+
 from __future__ import annotations
 
 import pytest
@@ -103,6 +104,7 @@ class TestAutoReprExplicit:
 
     def test_resolves_dotted_paths_and_properties_on_a_beam(self, fake_cadwork):
         beam = _make_beam()
+
         # Re-decorate the live Element class' repr is invasive; instead verify the
         # generated repr against a small wrapper using the same dotted resolution.
         @auto_repr("id", "attrs.name")

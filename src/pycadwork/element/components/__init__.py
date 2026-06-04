@@ -5,6 +5,7 @@ calls to the active backend. ``Element`` exposes them as ``elem.attrs`` and
 ``elem.geometry`` instead of inheriting their methods directly, so the
 class surface stays small and the concerns stay obvious at the call site.
 """
+
 from __future__ import annotations
 
 from pycadwork.element.components.attributes import Attributes

@@ -8,7 +8,11 @@ from pycadwork.geometry.obb import OrientedBoundingBox
 from pycadwork.geometry.plane3d import Plane3D
 from pycadwork.geometry.point3d import Point3D
 from pycadwork.geometry.segment3d import Segment3D
-from pycadwork.geometry.spatial_index import RTreeIndex3D, SpatialIndex3D, SpatialQuery3D
+from pycadwork.geometry.spatial_index import (
+    RTreeIndex3D,
+    SpatialIndex3D,
+    SpatialQuery3D,
+)
 from pycadwork.geometry.specs import (
     AxisFrame,
     AxisPoints,

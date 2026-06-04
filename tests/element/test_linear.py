@@ -3,6 +3,7 @@
 Verifies that Beam, Drilling, Line share the LinearGeometry surface and
 that the new composite value objects round-trip the construction args.
 """
+
 from __future__ import annotations
 
 import math

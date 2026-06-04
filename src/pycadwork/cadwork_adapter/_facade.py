@@ -5,6 +5,7 @@ package, e.g. ``cadwork.attributes.get_name(eid)``. Each sub-adapter owns one
 slice of the cwapi3d surface; adding a new call means adding it to the right
 sub-adapter (and its fake counterpart in ``tests/_fakes``).
 """
+
 from __future__ import annotations
 
 from pycadwork.cadwork_adapter._attributes import AttributesAdapter
@@ -20,7 +21,13 @@ class CadworkAdapter:
     """Facade over cwapi3d. Sub-adapters are grouped by responsibility."""
 
     __slots__ = (
-        "elements", "attributes", "geometry", "grouping", "display", "project", "bim"
+        "elements",
+        "attributes",
+        "geometry",
+        "grouping",
+        "display",
+        "project",
+        "bim",
     )
 
     def __init__(self) -> None:

@@ -5,6 +5,7 @@ Nodes are :class:`~pycadwork.element.Element` instances (hashable by
 graph is a plain in-memory value — building it snapshots the current
 contacts; it does not stay live as the model changes.
 """
+
 from __future__ import annotations
 
 from collections import deque
@@ -153,7 +154,7 @@ def build_connection_graph(
 
     if connects is not None:
         for i, a in enumerate(nodes):
-            for b in nodes[i + 1:]:
+            for b in nodes[i + 1 :]:
                 if connects(a, b):
                     graph.add_edge(a, b)
         return graph

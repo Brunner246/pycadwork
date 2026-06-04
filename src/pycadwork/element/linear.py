@@ -6,6 +6,7 @@ axis-derived geometry surface via :class:`LinearGeometry`, which lives on
 :class:`Frame3D`, length, cross-section width/height, the composite value
 objects :class:`AxisPoints` / :class:`AxisFrame`, and the OBB.
 """
+
 from __future__ import annotations
 
 from pycadwork.element.base import Element

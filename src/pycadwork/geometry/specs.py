@@ -4,6 +4,7 @@ These bundle the geometric arguments that flow into backend create_* calls.
 Same instance shape is consumed by domain classmethods, the protocol, the
 cwapi3d adapter, and the fake — eliminating the per-call _t()/_v() unpacking.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

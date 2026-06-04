@@ -1,4 +1,5 @@
 """Plate: cadwork's "panel" — exposed as Plate to match user vocabulary."""
+
 from __future__ import annotations
 
 from typing import Self
