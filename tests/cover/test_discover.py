@@ -17,6 +17,7 @@ from pycadwork import (
 from pycadwork.cadwork_adapter import cadwork
 from pycadwork.cadwork_adapter.types import CoverKind
 
+
 def _stud(x: float = 0.0) -> Beam:
     return Beam.create_rectangular(
         RectSection(80, 200),

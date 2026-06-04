@@ -28,6 +28,7 @@ from pycadwork.cover.group import Group
 from pycadwork.element.base import Element
 from pycadwork.element.factory import from_id
 
+
 class CoverBuilder:
     """Assemble cover aggregates from a set of elements via a chosen strategy."""
 
