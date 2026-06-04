@@ -16,12 +16,14 @@ beam = Beam.create_rectangular(
     RectSection(width=120.0, height=240.0),
     AxisPoints(Point3D(0, 0, 0), Point3D(3000, 0, 0), Point3D(0, 0, 1)),
 )
-beam.attrs.set_material("Pine")
-beam.attrs.set_group("frame")
+beam.attrs.material_name = "Pine"  # symmetric read/write properties
+beam.attrs.group = "frame"
 
 print(beam.geometry.length)   # live query against the model
 print(beam.geometry.volume)
 print(beam.cross_section)     # CrossSection.RECTANGULAR
+
+beam.geometry.width = 100.0  # writes the real dimension back to the model
 ```
 
 ---
@@ -134,7 +136,9 @@ surface small:
 - **`element.attrs`** — an `Attributes` view: `name`, `group`, `subgroup`,
   `comment`, `material_name`, `sku`, `production_number`, `part_number`,
   `cadwork_guid`, `additional_data`, `assembly_number`, and indexed
-  `user_attribute(i)`. Reads are properties; writes are `set_*` methods.
+  `user_attribute(i)`. Each is a read/write property (`attrs.group = "frame"`),
+  except read-only `cadwork_guid` and the indexed `user_attribute(i)` /
+  `set_user_attribute(i, v)` pair, which stay methods.
 - **`element.geometry`** — a `Geometry` view (narrowed per subclass) exposing
   `volume`, `weight`, `center_of_gravity`, `aabb`, `brep`, and — for linear and
   oriented elements — `start_point` / `end_point`, `frame`, `length` / `width` /
@@ -142,7 +146,7 @@ surface small:
 
 ```python
 beam.attrs.name              # -> str
-beam.attrs.set_material("Pine")
+beam.attrs.material_name = "Pine"  # write-back via the matching setter property
 beam.geometry.center_of_gravity   # -> Point3D
 beam.geometry.frame               # -> Frame3D
 beam.geometry.obb                 # -> OrientedBoundingBox

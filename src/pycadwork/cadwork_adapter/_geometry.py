@@ -10,7 +10,7 @@ from pycadwork.cadwork_adapter.types import (
 
 
 class GeometryAdapter:
-    """All geometric queries on an element — never mutates."""
+    """Geometric queries on an element, plus the real-dimension setters."""
 
     # ---- raw axis points ----
 
@@ -53,6 +53,20 @@ class GeometryAdapter:
     def get_height(self, eid: ElementId) -> float:
         import geometry_controller
         return float(geometry_controller.get_height(eid))
+
+    # ---- scalar setters (real dimensions) ----
+
+    def set_width(self, eids: list[ElementId], width: float) -> None:
+        import geometry_controller
+        geometry_controller.set_width_real(list(eids), width)
+
+    def set_height(self, eids: list[ElementId], height: float) -> None:
+        import geometry_controller
+        geometry_controller.set_height_real(list(eids), height)
+
+    def set_length(self, eids: list[ElementId], length: float) -> None:
+        import geometry_controller
+        geometry_controller.set_length_real(list(eids), length)
 
     def get_volume(self, eid: ElementId) -> float:
         import geometry_controller

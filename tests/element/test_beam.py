@@ -48,7 +48,7 @@ def test_name_and_group_setters_are_persistent():
         RectSection(80.0, 200.0),
         AxisPoints(Point3D(0, 0, 0), Point3D(0, 1000, 0), Point3D(0, 0, 1)),
     )
-    beam.attrs.set_name("Stud-01")
-    beam.attrs.set_group("WallA1")
+    beam.attrs.name = "Stud-01"
+    beam.attrs.group = "WallA1"
     assert beam.attrs.name == "Stud-01"
     assert beam.attrs.group == "WallA1"

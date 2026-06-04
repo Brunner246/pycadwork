@@ -526,6 +526,18 @@ class FakeGeometryAdapter:
     def get_height(self, eid: ElementId) -> float:
         return self._state.elements[eid].height
 
+    def set_width(self, eids: list[ElementId], width: float) -> None:
+        for eid in eids:
+            self._state.elements[eid].width = width
+
+    def set_height(self, eids: list[ElementId], height: float) -> None:
+        for eid in eids:
+            self._state.elements[eid].height = height
+
+    def set_length(self, eids: list[ElementId], length: float) -> None:
+        for eid in eids:
+            self._state.elements[eid].length = length
+
     def get_volume(self, eid: ElementId) -> float:
         return self._state.elements[eid].volume
 

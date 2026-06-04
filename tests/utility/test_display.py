@@ -153,7 +153,7 @@ def test_auto_recreate_passes_through_args(fake_cadwork):
 def test_suppressed_display_disables_without_recreate(fake_cadwork):
     @suppressed_display
     def relabel(b: Beam) -> None:
-        b.attrs.set_name("Stud")
+        b.attrs.name = "Stud"
 
     beam = _make_beam()
     relabel(beam)
