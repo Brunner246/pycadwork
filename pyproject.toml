@@ -1,10 +1,11 @@
 [project]
 name = "pycadwork"
-version = "0.1.0"
+version = "0.1.1"
 description = "OOP layer over cwapi3d (cadwork 3D Python API)"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "black>=26.5.1",
     "cwapi3d>=33",
     "rtree>=1.4.1",
 ]
@@ -25,3 +26,10 @@ packages = ["src/pycadwork"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]   # pycodestyle errors/warnings + pyflakes

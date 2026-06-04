@@ -232,29 +232,25 @@ wall.replace_children(new_members)
 wall.remove_child(beam)
 ```
 
-### Building a cover with `CoverBuilder`
+### Assembling covers with `CoverBuilder`
 
-The builder lands many children into a cover's group in a **single batched
-write** instead of N round-trips. The cover must already exist, carry the right
-`CoverKind`, and have a non-empty group key:
+The builder takes a bunch of elements, lets you set assembly options fluently,
+then `build()` returns the assembled covers as `list[Aggregate]`. The
+`aggregate_by_grouping` strategy buckets the elements by their active
+`group`/`subgroup` key and types each bucket holding a wall/floor/roof element:
 
 ```python
-cover_beam = Beam.create_rectangular(section, axis)
-cover_beam.attrs.set_group("WallA")
-cadwork.attributes.set_cover_kind([cover_beam.id], CoverKind.FRAMED_WALL)
-wall = Wall(cover_beam.id)
+from pycadwork import CoverBuilder, Wall, Document
 
-wall = (
-    CoverBuilder(wall)
-    .add(stud)
-    .add_all([plate, drilling])
-    .build()          # one batched group write
-)
+# every cover among the active elements, typed Wall / Slab / Roof
+covers = CoverBuilder(Document.active()).aggregate_by_grouping().build()
+
+# narrow the result to one cover family
+walls = CoverBuilder(elements).aggregate_by_grouping().only(Wall).build()
 ```
 
-The builder offers multiple assembly strategies by design — callers who prefer
-the imperative path use `Aggregate.add_child` / `add_children` directly and skip
-it entirely.
+The builder offers multiple assembly strategies by design. To *attach* children
+to a cover, use the imperative `Aggregate.add_child` / `add_children` directly.
 
 ### Discovering covers in a model
 

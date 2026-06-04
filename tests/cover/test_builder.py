@@ -1,9 +1,10 @@
-"""CoverBuilder: batch-attach to a pre-built cover.
+"""CoverBuilder: assemble typed cover aggregates from a set of elements.
 
-The builder no longer makes the cover — it only batches children into an
-existing typed ``Wall`` / ``Slab`` / ``Roof``. The caller flags the cover
-with the right ``CoverKind`` and sets its group/subgroup key first.
+The builder buckets the given elements by their active group/subgroup key and
+turns each bucket holding a wall/floor/roof element into a typed cover.
+``.only(...)`` narrows the result to chosen cover types.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -12,12 +13,12 @@ from pycadwork import (
     AxisPoints,
     Beam,
     CoverBuilder,
-    Drilling,
     PanelSection,
     Plate,
     Point3D,
     RectSection,
-    Segment,
+    Roof,
+    Slab,
     Wall,
 )
 from pycadwork.cadwork_adapter import cadwork
@@ -38,65 +39,100 @@ def _plate() -> Plate:
     )
 
 
-def _wall_cover(key: str = "WallA", mode: GroupingMode = GroupingMode.GROUP) -> Wall:
-    cadwork.grouping.set_element_grouping_type(mode)
-    cover = _beam(0)
+def _flag_and_group(
+    cover: Beam | Plate,
+    kind: CoverKind,
+    key: str,
+    *,
+    members: list[Beam | Plate] | None = None,
+    mode: GroupingMode = GroupingMode.GROUP,
+) -> None:
+    """Flag ``cover`` with ``kind`` and put it (plus ``members``) into ``key``."""
+    cadwork.attributes.set_cover_kind([cover.id], kind)
+    ids = [cover.id] + [m.id for m in (members or [])]
     if mode is GroupingMode.GROUP:
-        cover.attrs.set_group(key)
+        cadwork.attributes.set_group(ids, key)
     else:
-        cover.attrs.set_subgroup(key)
-    cadwork.attributes.set_cover_kind([cover.id], CoverKind.FRAMED_WALL)
-    return Wall(cover.id)
+        cadwork.attributes.set_subgroup(ids, key)
 
 
-def test_imperative_add_child_without_builder():
-    wall = _wall_cover()
-    new_beam = _beam(700)
-    new_plate = _plate()
-    wall.add_child(new_beam)
-    wall.add_child(new_plate)
-    assert {c.id for c in wall.children} == {new_beam.id, new_plate.id}
-
-
-def test_builder_adds_children_via_add_and_add_all():
-    wall = _wall_cover()
-    b1, b2, p = _beam(700), _beam(1400), _plate()
-    result = CoverBuilder(wall).add(b1).add_all([b2, p]).build()
-    assert result.id == wall.id
-    assert {c.id for c in wall.children} == {b1.id, b2.id, p.id}
-
-
-def test_builder_filters_out_cover_id_from_added_elements():
-    wall = _wall_cover()
-    result = CoverBuilder(wall).add(wall).build()
-    assert result.id == wall.id
-    assert wall.children == []
-
-
-def test_builder_raises_when_cover_has_no_group_key():
+def test_builder_aggregates_by_grouping():
     cadwork.grouping.set_element_grouping_type(GroupingMode.GROUP)
-    cover = _beam(0)
-    cadwork.attributes.set_cover_kind([cover.id], CoverKind.FRAMED_WALL)
-    wall = Wall(cover.id)
+    wall_parent, stud, sheathing = _beam(0), _beam(600), _plate()
+    _flag_and_group(
+        wall_parent, CoverKind.FRAMED_WALL, "WallX", members=[stud, sheathing]
+    )
 
-    with pytest.raises(ValueError, match="set_group"):
-        CoverBuilder(wall).add(_beam(700)).build()
+    covers = (
+        CoverBuilder([wall_parent, stud, sheathing]).aggregate_by_grouping().build()
+    )
+    assert len(covers) == 1
+    cover = covers[0]
+    assert isinstance(cover, Wall)
+    assert cover.id == wall_parent.id
+    assert {c.id for c in cover.children} == {stud.id, sheathing.id}
+
+
+def test_builder_one_aggregate_per_bucket_typed():
+    cadwork.grouping.set_element_grouping_type(GroupingMode.GROUP)
+    w, f, r = _beam(0), _plate(), _beam(2000)
+    _flag_and_group(w, CoverKind.FRAMED_WALL, "W")
+    _flag_and_group(f, CoverKind.FRAMED_FLOOR, "F")
+    _flag_and_group(r, CoverKind.FRAMED_ROOF, "R")
+
+    by_id = {c.id: c for c in CoverBuilder([w, f, r]).aggregate_by_grouping().build()}
+    assert isinstance(by_id[w.id], Wall)
+    assert isinstance(by_id[f.id], Slab)
+    assert isinstance(by_id[r.id], Roof)
+
+
+def test_builder_skips_bucket_without_cover_parent():
+    cadwork.grouping.set_element_grouping_type(GroupingMode.GROUP)
+    a, b = _beam(0), _beam(600)
+    cadwork.attributes.set_group([a.id, b.id], "NotACover")
+
+    assert CoverBuilder([a, b]).aggregate_by_grouping().build() == []
+
+
+def test_builder_skips_ungrouped_elements():
+    cadwork.grouping.set_element_grouping_type(GroupingMode.GROUP)
+    loose = _beam(0)  # flagged as a cover but no group key
+    cadwork.attributes.set_cover_kind([loose.id], CoverKind.FRAMED_WALL)
+
+    assert CoverBuilder([loose]).aggregate_by_grouping().build() == []
+
+
+def test_builder_only_filters_by_type():
+    cadwork.grouping.set_element_grouping_type(GroupingMode.GROUP)
+    w, f, r = _beam(0), _plate(), _beam(2000)
+    _flag_and_group(w, CoverKind.FRAMED_WALL, "W")
+    _flag_and_group(f, CoverKind.FRAMED_FLOOR, "F")
+    _flag_and_group(r, CoverKind.FRAMED_ROOF, "R")
+
+    covers = CoverBuilder([w, f, r]).aggregate_by_grouping().only(Wall).build()
+    assert {c.id for c in covers} == {w.id}
+    assert all(isinstance(c, Wall) for c in covers)
 
 
 def test_builder_works_in_subgroup_mode():
-    wall = _wall_cover(key="WallSub", mode=GroupingMode.SUBGROUP)
-    b1, b2 = _beam(700), _beam(1400)
-    CoverBuilder(wall).add_all([b1, b2]).build()
+    cadwork.grouping.set_element_grouping_type(GroupingMode.SUBGROUP)
+    parent, child = _beam(0), _beam(600)
+    _flag_and_group(
+        parent,
+        CoverKind.FRAMED_WALL,
+        "WallSub",
+        members=[child],
+        mode=GroupingMode.SUBGROUP,
+    )
+    # Group field is empty, so the test fails if the builder reads group.
+    assert parent.attrs.group == ""
 
-    assert b1.attrs.subgroup == "WallSub"
-    assert b2.attrs.subgroup == "WallSub"
-    assert b1.attrs.group == ""
-    assert b2.attrs.group == ""
+    covers = CoverBuilder([parent, child]).aggregate_by_grouping().build()
+    assert len(covers) == 1
+    assert covers[0].id == parent.id
+    assert {c.id for c in covers[0].children} == {child.id}
 
 
-def test_aggregate_add_children_batched():
-    wall = _wall_cover()
-    b1, b2 = _beam(700), _beam(1400)
-    drilling = Drilling.create(10, Segment(Point3D(0, 0, 0), Point3D(0, 0, 100)))
-    wall.add_children([b1, b2, drilling])
-    assert {c.id for c in wall.children} == {b1.id, b2.id, drilling.id}
+def test_builder_requires_strategy():
+    with pytest.raises(ValueError, match="no assembly strategy"):
+        CoverBuilder([_beam(0)]).build()

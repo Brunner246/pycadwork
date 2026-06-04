@@ -11,6 +11,7 @@ from __future__ import annotations
 from pycadwork.cadwork_adapter.types import CoverKind, GroupingMode
 from pycadwork.connectivity import ConnectionGraph, build_connection_graph, find_connected
 from pycadwork.cover import Aggregate, CoverBuilder, Group, Roof, Slab, Wall, discover_covers
+from pycadwork.document import Document, ProjectInfo
 from pycadwork.element import (
     REGISTRY,
     AuxiliaryElement,
@@ -75,6 +76,7 @@ __all__ = [
     "CoverKind",
     "CrossSection",
     "DisplayRefreshScope",
+    "Document",
     "Drilling",
     "Element",
     "ElementRegistry",
@@ -93,6 +95,7 @@ __all__ = [
     "Plane3D",
     "Plate",
     "Point3D",
+    "ProjectInfo",
     "RTreeIndex3D",
     "RectSection",
     "Roof",

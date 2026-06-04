@@ -55,6 +55,18 @@ def test_wall_add_child_promotes_element_into_group():
     assert new.id in {c.id for c in wall.children}
 
 
+def test_wall_add_children_batched_accepts_mixed_types():
+    wall, a, b = _wall_with_two_beams()
+    new_beam = _stud(1200)
+    plate = Plate.create_rectangular(
+        PanelSection(600, 18),
+        AxisPoints(Point3D(0, 0, 0), Point3D(2400, 0, 0), Point3D(0, 0, 1)),
+    )
+    drilling = Drilling.create(10, Segment(Point3D(0, 0, 0), Point3D(0, 0, 100)))
+    wall.add_children([new_beam, plate, drilling])
+    assert {c.id for c in wall.children} == {b.id, new_beam.id, plate.id, drilling.id}
+
+
 def test_wall_remove_child_clears_membership():
     wall, a, b = _wall_with_two_beams()
     wall.remove_child(b)
