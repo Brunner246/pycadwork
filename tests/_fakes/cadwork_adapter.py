@@ -171,6 +171,27 @@ class FakeState:
     display_refresh_disable_calls: int = 0
     display_refresh_enable_calls: int = 0
     recreate_calls: list[list[ElementId]] = field(default_factory=list)
+    # ---- project metadata (global, element-agnostic) ----
+    project_guid: str = "fake-project-guid"
+    project_name: str = ""
+    project_number: str = ""
+    project_part: str = ""
+    project_architect: str = ""
+    project_customer: str = ""
+    project_designer: str = ""
+    project_deadline: str = ""
+    project_description: str = ""
+    project_address: str = ""
+    project_postal_code: str = ""
+    project_city: str = ""
+    project_country: str = ""
+    project_latitude: float = 0.0
+    project_longitude: float = 0.0
+    project_elevation: float = 0.0
+    project_user_attributes: dict[int, str] = field(default_factory=dict)
+    project_user_attribute_names: dict[int, str] = field(default_factory=dict)
+    project_data: dict[str, str] = field(default_factory=dict)
+    _next_project_guid: int = 1
 
     def alloc(self, snapshot: ElementTypeSnapshot) -> _FakeElement:
         eid = self._next_id
@@ -505,6 +526,18 @@ class FakeGeometryAdapter:
     def get_height(self, eid: ElementId) -> float:
         return self._state.elements[eid].height
 
+    def set_width(self, eids: list[ElementId], width: float) -> None:
+        for eid in eids:
+            self._state.elements[eid].width = width
+
+    def set_height(self, eids: list[ElementId], height: float) -> None:
+        for eid in eids:
+            self._state.elements[eid].height = height
+
+    def set_length(self, eids: list[ElementId], length: float) -> None:
+        for eid in eids:
+            self._state.elements[eid].length = length
+
     def get_volume(self, eid: ElementId) -> float:
         return self._state.elements[eid].volume
 
@@ -578,13 +611,160 @@ class FakeDisplayAdapter:
         self._state.recreate_calls.append(list(eids))
 
 
+class FakeProjectAdapter:
+    def __init__(self, state: FakeState) -> None:
+        self._state = state
+
+    # ---- identity ----
+
+    def get_project_guid(self) -> str:
+        return self._state.project_guid
+
+    def create_new_guid(self) -> str:
+        guid = f"fake-new-guid-{self._state._next_project_guid:08d}"
+        self._state._next_project_guid += 1
+        return guid
+
+    # ---- metadata (str) ----
+
+    def get_project_name(self) -> str:
+        return self._state.project_name
+
+    def set_project_name(self, value: str) -> None:
+        self._state.project_name = value
+
+    def get_project_number(self) -> str:
+        return self._state.project_number
+
+    def set_project_number(self, value: str) -> None:
+        self._state.project_number = value
+
+    def get_project_part(self) -> str:
+        return self._state.project_part
+
+    def set_project_part(self, value: str) -> None:
+        self._state.project_part = value
+
+    def get_project_architect(self) -> str:
+        return self._state.project_architect
+
+    def set_project_architect(self, value: str) -> None:
+        self._state.project_architect = value
+
+    def get_project_customer(self) -> str:
+        return self._state.project_customer
+
+    def set_project_customer(self, value: str) -> None:
+        self._state.project_customer = value
+
+    def get_project_designer(self) -> str:
+        return self._state.project_designer
+
+    def set_project_designer(self, value: str) -> None:
+        self._state.project_designer = value
+
+    def get_project_deadline(self) -> str:
+        return self._state.project_deadline
+
+    def set_project_deadline(self, value: str) -> None:
+        self._state.project_deadline = value
+
+    def get_project_description(self) -> str:
+        return self._state.project_description
+
+    def set_project_description(self, value: str) -> None:
+        self._state.project_description = value
+
+    # ---- address ----
+
+    def get_project_address(self) -> str:
+        return self._state.project_address
+
+    def set_project_address(self, value: str) -> None:
+        self._state.project_address = value
+
+    def get_project_postal_code(self) -> str:
+        return self._state.project_postal_code
+
+    def set_project_postal_code(self, value: str) -> None:
+        self._state.project_postal_code = value
+
+    def get_project_city(self) -> str:
+        return self._state.project_city
+
+    def set_project_city(self, value: str) -> None:
+        self._state.project_city = value
+
+    def get_project_country(self) -> str:
+        return self._state.project_country
+
+    def set_project_country(self, value: str) -> None:
+        self._state.project_country = value
+
+    # ---- geo-location (float) ----
+
+    def get_project_latitude(self) -> float:
+        return self._state.project_latitude
+
+    def set_project_latitude(self, value: float) -> None:
+        self._state.project_latitude = value
+
+    def get_project_longitude(self) -> float:
+        return self._state.project_longitude
+
+    def set_project_longitude(self, value: float) -> None:
+        self._state.project_longitude = value
+
+    def get_project_elevation(self) -> float:
+        return self._state.project_elevation
+
+    def set_project_elevation(self, value: float) -> None:
+        self._state.project_elevation = value
+
+    # ---- indexed user attributes ----
+
+    def get_project_user_attribute(self, number: int) -> str:
+        return self._state.project_user_attributes.get(number, "")
+
+    def set_project_user_attribute(self, number: int, value: str) -> None:
+        self._state.project_user_attributes[number] = value
+
+    def get_project_user_attribute_name(self, number: int) -> str:
+        return self._state.project_user_attribute_names.get(number, "")
+
+    def set_project_user_attribute_name(self, number: int, value: str) -> None:
+        self._state.project_user_attribute_names[number] = value
+
+    # ---- project-data key/value store ----
+
+    def get_project_data(self, key: str) -> str:
+        return self._state.project_data.get(key, "")
+
+    def set_project_data(self, key: str, data: str) -> None:
+        self._state.project_data[key] = data
+
+    def delete_project_data(self, key: str) -> None:
+        self._state.project_data.pop(key, None)
+
+    def get_project_data_keys(self) -> list[str]:
+        return list(self._state.project_data.keys())
+
+
 # ---- facade ----
 
 
 class FakeCadworkAdapter:
     """Same shape as :class:`CadworkAdapter` — duck-typed, no Protocol needed."""
 
-    __slots__ = ("state", "elements", "attributes", "geometry", "grouping", "display")
+    __slots__ = (
+        "state",
+        "elements",
+        "attributes",
+        "geometry",
+        "grouping",
+        "display",
+        "project",
+    )
 
     def __init__(self) -> None:
         self.state: FakeState = FakeState()
@@ -593,3 +773,4 @@ class FakeCadworkAdapter:
         self.geometry = FakeGeometryAdapter(self.state)
         self.grouping = FakeGroupingAdapter(self.state)
         self.display = FakeDisplayAdapter(self.state)
+        self.project = FakeProjectAdapter(self.state)

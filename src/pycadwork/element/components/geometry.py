@@ -6,12 +6,16 @@ Four classes, walked by inheritance:
   COG, AABB, BRep). Bound on bare ``Element`` and :class:`Surface`.
 * :class:`LinearGeometry` — adds axis points, frame, length/width/height,
   axis-derived composite value objects, and the oriented bounding box.
-  Bound on :class:`LinearElement` (Beam, Drilling, Line).
+  ``length`` / ``width`` / ``height`` are read/write properties; assigning
+  writes the real dimension straight back to the model. Bound on
+  :class:`LinearElement` (Beam, Drilling, Line).
 * :class:`OrientedGeometry` — adds the :attr:`thickness` semantic alias for
-  the backend's height channel. Bound on :class:`OrientedElement` (Plate).
+  the backend's height channel (read/write). Bound on
+  :class:`OrientedElement` (Plate).
 * :class:`NodeGeometry` — adds the single :attr:`position` accessor; bulk
   queries still work but report degenerate values.
 """
+
 from __future__ import annotations
 
 from pycadwork.cadwork_adapter import cadwork
@@ -103,13 +107,25 @@ class LinearGeometry(Geometry):
     def length(self) -> float:
         return cadwork.geometry.get_length(self._id)
 
+    @length.setter
+    def length(self, length: float) -> None:
+        cadwork.geometry.set_length([self._id], length)
+
     @property
     def width(self) -> float:
         return cadwork.geometry.get_width(self._id)
 
+    @width.setter
+    def width(self, width: float) -> None:
+        cadwork.geometry.set_width([self._id], width)
+
     @property
     def height(self) -> float:
         return cadwork.geometry.get_height(self._id)
+
+    @height.setter
+    def height(self, height: float) -> None:
+        cadwork.geometry.set_height([self._id], height)
 
     # ---- composite value objects ----
 
@@ -143,6 +159,10 @@ class OrientedGeometry(LinearGeometry):
     def thickness(self) -> float:
         """Panel thickness — semantic alias for the backend's ``height`` channel."""
         return cadwork.geometry.get_height(self._id)
+
+    @thickness.setter
+    def thickness(self, thickness: float) -> None:
+        cadwork.geometry.set_height([self._id], thickness)
 
 
 class NodeGeometry(Geometry):

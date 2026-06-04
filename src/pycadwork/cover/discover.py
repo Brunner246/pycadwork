@@ -1,63 +1,45 @@
 """Discover existing cover aggregates in the active cadwork model.
 
-Mirrors the canonical scan-the-model loop: bucket elements by ``group`` or
-``subgroup`` (whichever the active grouping mode says), then pick the
-wall / floor / roof element in each bucket as the aggregate's parent and
-wrap it via :func:`pycadwork.element.from_id` so it lands as a typed
-``Wall`` / ``Slab`` / ``Roof``. Buckets without a wall/floor/roof element
-are silently skipped — they aren't cover aggregates by definition. The
-empty grouping key (unaffiliated elements) is also skipped.
+A cover is any element cadwork has flagged as a wall, floor, or roof, so
+discovery is a plain filter over the scanned ids: keep the ones whose type
+snapshot reports ``is_wall`` / ``is_floor`` / ``is_roof`` and wrap each via
+:func:`pycadwork.element.from_id` so it lands as a typed ``Wall`` / ``Slab`` /
+``Roof``. Each cover's children stay a live view through
+:attr:`pycadwork.cover.Aggregate.children` — discovery only finds the parents,
+it does not assemble groups. (Assembling loose elements into covers is the job
+of :class:`pycadwork.cover.CoverBuilder`.)
 
-All cwapi3d access goes through :data:`pycadwork.cadwork_adapter.cadwork`
-to honour the version-isolation seam.
+All cwapi3d access goes through :data:`pycadwork.cadwork_adapter.cadwork` to
+honour the version-isolation seam.
 """
+
 from __future__ import annotations
 
 from collections.abc import Iterable
 
 from pycadwork.cadwork_adapter import cadwork
-from pycadwork.cadwork_adapter.types import GroupingMode
 from pycadwork.cover.aggregate import Aggregate
 from pycadwork.element.factory import from_id
 
 
 def discover_covers(ids: Iterable[int] | None = None) -> list[Aggregate]:
-    """Return one aggregate per grouping bucket that contains a cover parent.
+    """Return every model element flagged as a cover (wall/floor/roof), typed.
 
-    ``ids`` defaults to the active identifiable elements in the model.
-    Pass an explicit iterable to scan a custom set.
+    ``ids`` defaults to the active identifiable elements; pass an iterable to
+    scan a custom subset. Each cover's children stay a live view via
+    ``Aggregate.children`` — discovery only finds the parents.
     """
-    grouping = cadwork.grouping
-    attrs = cadwork.attributes
     elements = cadwork.elements
-
-    mode = grouping.get_element_grouping_type()
-    eids: Iterable[int] = list(ids) if ids is not None else elements.get_active_identifiable_element_ids()
-
-    read_key = attrs.get_group if mode is GroupingMode.GROUP else attrs.get_subgroup
-
-    buckets: dict[str, list[int]] = {}
-    for eid in eids:
-        key = read_key(eid)
-        if not key:
-            continue
-        buckets.setdefault(key, []).append(eid)
+    eids: Iterable[int] = (
+        list(ids) if ids is not None else elements.get_active_identifiable_element_ids()
+    )
 
     covers: list[Aggregate] = []
-    for bucket_ids in buckets.values():
-        parent_id = next(
-            (
-                eid
-                for eid in bucket_ids
-                if (snap := elements.get_element_type(eid))
-                and (snap.is_wall or snap.is_floor or snap.is_roof)
-            ),
-            None,
-        )
-        if parent_id is None:
+    for eid in eids:
+        snap = elements.get_element_type(eid)
+        if not (snap.is_wall or snap.is_floor or snap.is_roof):
             continue
-        wrapped = from_id(parent_id)
+        wrapped = from_id(eid)
         if isinstance(wrapped, Aggregate):
             covers.append(wrapped)
-
     return covers

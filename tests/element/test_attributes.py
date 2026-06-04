@@ -29,13 +29,13 @@ def test_two_elements_get_distinct_cadwork_guids():
 def test_additional_data_round_trip():
     beam = _make_beam()
     assert beam.attrs.additional_data == ""
-    beam.attrs.set_additional_data("payload-7")
+    beam.attrs.additional_data = "payload-7"
     assert beam.attrs.additional_data == "payload-7"
 
 
 def test_assembly_number_round_trip():
     beam = _make_beam()
-    beam.attrs.set_assembly_number("A-42")
+    beam.attrs.assembly_number = "A-42"
     assert beam.attrs.assembly_number == "A-42"
 
 
