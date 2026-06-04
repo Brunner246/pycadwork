@@ -1,4 +1,5 @@
 """Beam create + property round-trip against the FakeCadworkAdapter."""
+
 from __future__ import annotations
 
 import math

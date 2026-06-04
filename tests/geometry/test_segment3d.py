@@ -38,7 +38,9 @@ class TestFactoryConstruction:
             Segment3D.from_two_points(p, p)
 
     def test_from_point_and_vector_builds_endpoint(self):
-        seg = Segment3D.from_point_and_vector(Point3D(1.0, 0.0, 0.0), Vector3D(2.0, 0.0, 0.0))
+        seg = Segment3D.from_point_and_vector(
+            Point3D(1.0, 0.0, 0.0), Vector3D(2.0, 0.0, 0.0)
+        )
         check_point(seg.p2, Point3D(3.0, 0.0, 0.0))
 
     def test_from_point_and_vector_zero_raises(self):
@@ -146,7 +148,9 @@ class TestDistance:
     def test_distance_uses_clamped_foot_past_p2(self):
         """(5, 1, 0) past p2=(2,0,0): distance is hypot(3, 1), NOT 1 (the line distance)."""
         seg = Segment3D.from_two_points(Point3D.origin(), Point3D(2.0, 0.0, 0.0))
-        assert seg.distance_to_point(Point3D(5.0, 1.0, 0.0)) == pytest.approx(math.hypot(3.0, 1.0))
+        assert seg.distance_to_point(Point3D(5.0, 1.0, 0.0)) == pytest.approx(
+            math.hypot(3.0, 1.0)
+        )
 
     def test_distance_uses_clamped_foot_past_p1(self):
         seg = Segment3D.from_two_points(Point3D.origin(), Point3D(2.0, 0.0, 0.0))
@@ -163,7 +167,9 @@ class TestDistance:
 
     def test_distance_squared_avoids_sqrt(self):
         seg = Segment3D.from_two_points(Point3D.origin(), Point3D(2.0, 0.0, 0.0))
-        assert seg.distance_squared_to_point(Point3D(5.0, 1.0, 0.0)) == pytest.approx(10.0)
+        assert seg.distance_squared_to_point(Point3D(5.0, 1.0, 0.0)) == pytest.approx(
+            10.0
+        )
 
 
 # ==========================================================================

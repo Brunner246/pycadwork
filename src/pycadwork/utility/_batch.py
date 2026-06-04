@@ -1,4 +1,5 @@
 """Bulk-attribute helpers — one adapter call per attribute, instead of N."""
+
 from __future__ import annotations
 
 from collections.abc import Iterable

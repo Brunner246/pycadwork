@@ -1,6 +1,7 @@
 """Node exposes ``position`` via ``node.geometry``; it does not inherit
 linear-element geometry.
 """
+
 from __future__ import annotations
 
 from pycadwork import Node, Point3D

@@ -249,7 +249,9 @@ class TestDotProduct:
 
     def test_general_case(self):
         """1*4 + 2*5 + 3*6 = 32."""
-        assert Vector3D(1.0, 2.0, 3.0).dot(Vector3D(4.0, 5.0, 6.0)) == pytest.approx(32.0)
+        assert Vector3D(1.0, 2.0, 3.0).dot(Vector3D(4.0, 5.0, 6.0)) == pytest.approx(
+            32.0
+        )
 
     def test_commutative(self):
         a = Vector3D(1.0, 2.0, 3.0)

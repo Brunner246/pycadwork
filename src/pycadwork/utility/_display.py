@@ -5,6 +5,7 @@ costs more than the work itself. The helpers here drive the seam's
 disable / recreate / enable triple in an exception-safe way and never
 import cadwork directly.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
@@ -66,9 +67,7 @@ class DisplayRefreshScope(ContextDecorator):
             self._to_recreate.extend(e.id for e in elements)
         return elements
 
-    def recreate_after(
-        self, func: Callable[..., R], /, *args, **kwargs
-    ) -> R:
+    def recreate_after(self, func: Callable[..., R], /, *args, **kwargs) -> R:
         """Call ``func``, track any :class:`Element`(s) it returns, return result."""
         result = func(*args, **kwargs)
         if isinstance(result, Element):
@@ -86,6 +85,7 @@ def suppressed_display(func: Callable[..., R]) -> Callable[..., R]:
     Like :class:`DisplayRefreshScope` but without the recreate step — use
     when ``func`` mutates only attributes that don't change geometry.
     """
+
     @wraps(func)
     def wrapper(*args, **kwargs) -> R:
         display = cadwork.display
@@ -105,6 +105,7 @@ def auto_recreate(func: Callable[..., R]) -> Callable[..., R]:
     recreated on exit. Sugar over ``DisplayRefreshScope().recreate_after(func)``
     for the common single-call create-and-track pattern.
     """
+
     @wraps(func)
     def wrapper(*args, **kwargs) -> R:
         with DisplayRefreshScope() as scope:

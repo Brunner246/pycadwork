@@ -13,11 +13,11 @@ class Frame3D:
     __slots__ = ("_origin", "_axis_x", "_axis_y", "_axis_z")
 
     def __init__(
-            self,
-            origin: Point3D | None = None,
-            axis_x: Vector3D | None = None,
-            axis_y: Vector3D | None = None,
-            axis_z: Vector3D | None = None,
+        self,
+        origin: Point3D | None = None,
+        axis_x: Vector3D | None = None,
+        axis_y: Vector3D | None = None,
+        axis_z: Vector3D | None = None,
     ) -> None:
         self._origin = origin if origin is not None else Point3D.origin()
 

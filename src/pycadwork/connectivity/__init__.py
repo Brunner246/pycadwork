@@ -7,6 +7,7 @@
 Both decide contact geometrically by default (reusing the geometry and
 spatial-index layers), and both accept a custom ``connects`` predicate.
 """
+
 from __future__ import annotations
 
 from pycadwork.connectivity.find import find_connected

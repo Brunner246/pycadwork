@@ -4,6 +4,7 @@ The rule keeps the package agnostic of any specific cwapi3d version. If
 this test starts failing, do not relax it -- route the new cadwork call
 through a sub-adapter in ``pycadwork.cadwork_adapter`` instead.
 """
+
 from __future__ import annotations
 
 import ast
@@ -31,9 +32,7 @@ FORBIDDEN_TOPLEVEL = {
     "utility_controller",
 }
 
-ALLOWED_PREFIX = (
-    Path("src") / "pycadwork" / "cadwork_adapter"
-).as_posix() + "/"
+ALLOWED_PREFIX = (Path("src") / "pycadwork" / "cadwork_adapter").as_posix() + "/"
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 

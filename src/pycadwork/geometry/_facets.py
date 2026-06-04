@@ -36,10 +36,7 @@ def point3d_from_tuple(t: "PointTuple") -> Point3D:
 
 
 def _points_from_vertex_list(verts: "VertexListLike") -> list[Point3D]:
-    return [
-        Point3D(p.x, p.y, p.z)
-        for p in (verts.at(i) for i in range(verts.count()))
-    ]
+    return [Point3D(p.x, p.y, p.z) for p in (verts.at(i) for i in range(verts.count()))]
 
 
 def _loop_from_vertex_list(verts: "VertexListLike") -> Loop:
@@ -84,7 +81,9 @@ def brep_from_facet_list(facets: "FacetListLike") -> Brep:
         n = facets.get_normal_vector(i)
         normal = Vector3D(n.x, n.y, n.z)
 
-        point_on_plane = outer.vertex_at(0) if not outer.is_empty() else Point3D.origin()
+        point_on_plane = (
+            outer.vertex_at(0) if not outer.is_empty() else Point3D.origin()
+        )
         plane = Plane3D.from_point_and_normal(point_on_plane, normal)
 
         brep.add_face(Face(outer, plane, inner))

@@ -1,4 +1,5 @@
 """ConnectorAxis create + factory round-trip (dispatch precedence over Beam)."""
+
 from __future__ import annotations
 
 from pycadwork import Beam, ConnectorAxis, Point3D, Segment, from_id

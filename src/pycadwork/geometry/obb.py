@@ -39,9 +39,7 @@ class OrientedBoundingBox:
         try:
             first = next(iterator)
         except StopIteration as exc:
-            raise ValueError(
-                "OrientedBoundingBox requires at least one point"
-            ) from exc
+            raise ValueError("OrientedBoundingBox requires at least one point") from exc
 
         local_first = frame.world_to_local(first)
         xmin = xmax = local_first.x
@@ -70,9 +68,7 @@ class OrientedBoundingBox:
         )
         world_center = frame.local_to_world(local_center)
 
-        self._frame = Frame3D(
-            world_center, frame.axis_x, frame.axis_y, frame.axis_z
-        )
+        self._frame = Frame3D(world_center, frame.axis_x, frame.axis_y, frame.axis_z)
         self._half_extents = Vector3D(
             0.5 * (xmax - xmin),
             0.5 * (ymax - ymin),
@@ -85,7 +81,7 @@ class OrientedBoundingBox:
 
     @staticmethod
     def from_frame_and_half_extents(
-            frame: Frame3D, half_extents: Vector3D
+        frame: Frame3D, half_extents: Vector3D
     ) -> OrientedBoundingBox:
         """Build an OBB directly from a centered frame and half-extents.
 
@@ -95,22 +91,14 @@ class OrientedBoundingBox:
         Raises:
             ValueError: if any half-extent is negative.
         """
-        if (
-                half_extents.x < 0.0
-                or half_extents.y < 0.0
-                or half_extents.z < 0.0
-        ):
+        if half_extents.x < 0.0 or half_extents.y < 0.0 or half_extents.z < 0.0:
             raise ValueError(
                 "from_frame_and_half_extents: half-extents must be non-negative"
             )
 
         box = OrientedBoundingBox.__new__(OrientedBoundingBox)
-        box._frame = Frame3D(
-            frame.origin, frame.axis_x, frame.axis_y, frame.axis_z
-        )
-        box._half_extents = Vector3D(
-            half_extents.x, half_extents.y, half_extents.z
-        )
+        box._frame = Frame3D(frame.origin, frame.axis_x, frame.axis_y, frame.axis_z)
+        box._half_extents = Vector3D(half_extents.x, half_extents.y, half_extents.z)
         return box
 
     @staticmethod
@@ -200,9 +188,7 @@ class OrientedBoundingBox:
         local = self._frame.world_to_local(p)
         h = self._half_extents
         return (
-                -h.x <= local.x <= h.x
-                and -h.y <= local.y <= h.y
-                and -h.z <= local.z <= h.z
+            -h.x <= local.x <= h.x and -h.y <= local.y <= h.y and -h.z <= local.z <= h.z
         )
 
     def intersects(self, other: OrientedBoundingBox) -> bool:
@@ -243,11 +229,11 @@ class OrientedBoundingBox:
         if not isinstance(other, OrientedBoundingBox):
             return NotImplemented
         return (
-                self._frame.origin == other._frame.origin
-                and self._frame.axis_x == other._frame.axis_x
-                and self._frame.axis_y == other._frame.axis_y
-                and self._frame.axis_z == other._frame.axis_z
-                and self._half_extents == other._half_extents
+            self._frame.origin == other._frame.origin
+            and self._frame.axis_x == other._frame.axis_x
+            and self._frame.axis_y == other._frame.axis_y
+            and self._frame.axis_z == other._frame.axis_z
+            and self._half_extents == other._half_extents
         )
 
     def __ne__(self, other: object) -> bool:
@@ -273,9 +259,7 @@ class OrientedBoundingBox:
         return self.__repr__()
 
 
-def _obb_obb_sat(
-        a: OrientedBoundingBox, b: OrientedBoundingBox
-) -> bool:
+def _obb_obb_sat(a: OrientedBoundingBox, b: OrientedBoundingBox) -> bool:
     """OBB-OBB separating axis test (Gottschalk 1996; Ericson RTCD 4.4.1).
 
     Tests all 15 potential separating axes: 3 from each box plus 9 pairwise
@@ -288,10 +272,7 @@ def _obb_obb_sat(
     b_he = (b.half_extents.x, b.half_extents.y, b.half_extents.z)
 
     R = [[a_axes[i].dot(b_axes[j]) for j in range(3)] for i in range(3)]
-    abs_R = [
-        [abs(R[i][j]) + _SAT_PARALLEL_EPSILON for j in range(3)]
-        for i in range(3)
-    ]
+    abs_R = [[abs(R[i][j]) + _SAT_PARALLEL_EPSILON for j in range(3)] for i in range(3)]
 
     t_world = b.frame.origin - a.frame.origin
     t = (
@@ -302,20 +283,12 @@ def _obb_obb_sat(
 
     for i in range(3):
         ra = a_he[i]
-        rb = (
-                b_he[0] * abs_R[i][0]
-                + b_he[1] * abs_R[i][1]
-                + b_he[2] * abs_R[i][2]
-        )
+        rb = b_he[0] * abs_R[i][0] + b_he[1] * abs_R[i][1] + b_he[2] * abs_R[i][2]
         if abs(t[i]) > ra + rb:
             return False
 
     for j in range(3):
-        ra = (
-                a_he[0] * abs_R[0][j]
-                + a_he[1] * abs_R[1][j]
-                + a_he[2] * abs_R[2][j]
-        )
+        ra = a_he[0] * abs_R[0][j] + a_he[1] * abs_R[1][j] + a_he[2] * abs_R[2][j]
         rb = b_he[j]
         tj = t[0] * R[0][j] + t[1] * R[1][j] + t[2] * R[2][j]
         if abs(tj) > ra + rb:

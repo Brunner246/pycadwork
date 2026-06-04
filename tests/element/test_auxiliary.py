@@ -1,4 +1,5 @@
 """AuxiliaryElement create + factory round-trip."""
+
 from __future__ import annotations
 
 from pycadwork import AuxiliaryElement, Point3D, Surface, Vector3D, from_id
@@ -6,7 +7,12 @@ from pycadwork import AuxiliaryElement, Point3D, Surface, Vector3D, from_id
 
 def _square() -> Surface:
     return Surface.create(
-        [Point3D(0, 0, 0), Point3D(1000, 0, 0), Point3D(1000, 1000, 0), Point3D(0, 1000, 0)]
+        [
+            Point3D(0, 0, 0),
+            Point3D(1000, 0, 0),
+            Point3D(1000, 1000, 0),
+            Point3D(0, 1000, 0),
+        ]
     )
 
 

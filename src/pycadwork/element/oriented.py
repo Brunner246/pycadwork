@@ -5,6 +5,7 @@ Subclass: :class:`Plate`. Shares the axis-frame surface with
 axis frame) but ``self.geometry`` exposes ``thickness`` as the semantically
 appropriate alias for the backend's ``height`` channel.
 """
+
 from __future__ import annotations
 
 from pycadwork.element.base import Element

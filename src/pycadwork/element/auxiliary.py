@@ -1,4 +1,5 @@
 """AuxiliaryElement: a helper element produced by surface extrusion."""
+
 from __future__ import annotations
 
 from typing import Self
@@ -17,9 +18,7 @@ class AuxiliaryElement(Element):
     __slots__ = ()
 
     @classmethod
-    def from_surface_extrusion(
-        cls, surface: Surface, vector: Vector3D
-    ) -> Self:
+    def from_surface_extrusion(cls, surface: Surface, vector: Vector3D) -> Self:
         eid = cadwork.elements.extrude_surface_to_auxiliary_vector(
             surface.id, Point3D(vector.x, vector.y, vector.z)
         )

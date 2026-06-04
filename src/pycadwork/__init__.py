@@ -6,11 +6,24 @@ the submodule layout. All cwapi3d interaction is funnelled through one
 internal seam (``pycadwork.cadwork_adapter``); the rest of the package is
 agnostic to any specific cwapi3d version.
 """
+
 from __future__ import annotations
 
 from pycadwork.cadwork_adapter.types import CoverKind, GroupingMode
-from pycadwork.connectivity import ConnectionGraph, build_connection_graph, find_connected
-from pycadwork.cover import Aggregate, CoverBuilder, Group, Roof, Slab, Wall, discover_covers
+from pycadwork.connectivity import (
+    ConnectionGraph,
+    build_connection_graph,
+    find_connected,
+)
+from pycadwork.cover import (
+    Aggregate,
+    CoverBuilder,
+    Group,
+    Roof,
+    Slab,
+    Wall,
+    discover_covers,
+)
 from pycadwork.document import Document, ProjectInfo
 from pycadwork.element import (
     REGISTRY,

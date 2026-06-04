@@ -6,6 +6,7 @@ If anyone ever adds a ``.beams`` / ``.plates`` / ``.drillings`` (or similar)
 property to a public class, this test fails. To filter by type, use
 ``children_of(Beam)``.
 """
+
 from __future__ import annotations
 
 from pycadwork import Aggregate, ConnectionGraph, Group, Roof, Slab, Wall

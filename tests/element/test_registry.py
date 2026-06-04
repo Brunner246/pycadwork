@@ -1,4 +1,5 @@
 """ElementRegistry — priority-ordered predicate dispatch (no live backend)."""
+
 from __future__ import annotations
 
 from pycadwork.cadwork_adapter.types import ElementTypeSnapshot

@@ -1,4 +1,5 @@
 """Helpers and decorators above the cadwork_adapter seam."""
+
 from __future__ import annotations
 
 from pycadwork.utility._batch import batch_apply

@@ -8,6 +8,7 @@ adapts when the project-wide setting changes.
 ``Group`` is not an :class:`Element`. It is the implementation detail used
 by ``CoverObject.members`` to expose its children polymorphically.
 """
+
 from __future__ import annotations
 
 from typing import Any, TypeVar

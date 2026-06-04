@@ -1,4 +1,5 @@
 """Drilling: a cylindrical hole element defined by two endpoints + diameter."""
+
 from __future__ import annotations
 
 from typing import Self

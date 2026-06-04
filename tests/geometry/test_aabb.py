@@ -48,9 +48,7 @@ class TestConstruction:
             AxisAlignedBoundingBox([])
 
     def test_accepts_generator(self):
-        box = AxisAlignedBoundingBox(
-            p for p in [Point3D(0, 0, 0), Point3D(2, 2, 2)]
-        )
+        box = AxisAlignedBoundingBox(p for p in [Point3D(0, 0, 0), Point3D(2, 2, 2)])
         assert box.max_point == Point3D(2.0, 2.0, 2.0)
 
 
@@ -75,15 +73,11 @@ class TestAccessors:
         assert box.center == Point3D(0.5, 0.5, 0.5)
 
     def test_size(self):
-        box = AxisAlignedBoundingBox(
-            [Point3D(0.0, 0.0, 0.0), Point3D(3.0, 4.0, 5.0)]
-        )
+        box = AxisAlignedBoundingBox([Point3D(0.0, 0.0, 0.0), Point3D(3.0, 4.0, 5.0)])
         assert box.size == Vector3D(3.0, 4.0, 5.0)
 
     def test_is_empty_for_flat_box(self):
-        flat = AxisAlignedBoundingBox(
-            [Point3D(0.0, 0.0, 0.0), Point3D(1.0, 1.0, 0.0)]
-        )
+        flat = AxisAlignedBoundingBox([Point3D(0.0, 0.0, 0.0), Point3D(1.0, 1.0, 0.0)])
         assert flat.is_empty()
 
     def test_non_empty_for_volumetric_box(self):
