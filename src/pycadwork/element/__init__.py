@@ -16,6 +16,14 @@ from pycadwork.element.plate import Plate
 from pycadwork.element.registry import REGISTRY, ElementRegistry, register_element
 from pycadwork.element.surface import Surface
 
+# Cover aggregates (Wall / Slab / Roof) live in the element.cover subpackage and
+# self-register via @register_element, exactly like the primitive wrappers imported
+# above. Importing the subpackage here makes that registration eager: by the time
+# anything can reach from_id, pycadwork.element has finished importing and the
+# dispatch table is already complete. Must come after base/registry/factory above —
+# the cover modules depend on them.
+from pycadwork.element import cover  # noqa: F401
+
 __all__ = [
     "REGISTRY",
     "AuxiliaryElement",

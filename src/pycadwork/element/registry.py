@@ -11,10 +11,13 @@ primitive ``is_beam`` / ``is_panel`` predicates, so aggregates (``Wall`` / ``Sla
 lower number is checked first; gaps of ten leave room to slot future kinds in
 without renumbering.
 
-Registration happens at class-definition time via :func:`register_element`. Since
-the cover modules import :class:`Element` from this package, their import is
-deferred to :func:`ensure_registered` (called once by ``from_id``) — the same
-circular-import dodge the old static table used.
+Registration happens at class-definition time via :func:`register_element`, so a
+wrapper class lands in the table the moment its module is imported. The package
+``__init__`` imports every wrapper module — primitives directly, the cover
+aggregates (``Wall`` / ``Slab`` / ``Roof``) via the ``element.cover`` subpackage —
+so by the time anything can reach ``from_id`` the dispatch table is already
+complete. No lazy bootstrap is needed: this module cannot import the cover modules
+itself (they import it), but the package ``__init__`` can, and does.
 """
 
 from __future__ import annotations
@@ -95,35 +98,3 @@ def register_element(predicate: Predicate, *, priority: int) -> Callable[[_T], _
         return cls
 
     return decorate
-
-
-_loaded = False
-
-
-def ensure_registered() -> None:
-    """Import every wrapper module once so its ``@register_element`` runs.
-
-    Idempotent. The cover imports are deferred to here (not module top) to break
-    the ``cover.* -> element.base`` import cycle — exactly where the dispatch table
-    used to be built.
-    """
-    global _loaded
-    if _loaded:
-        return
-    _loaded = True
-
-    # Primitive / special elements (most are already imported via element/__init__,
-    # but list them explicitly so registration never depends on import order).
-    import pycadwork.element.auxiliary  # noqa: F401
-    import pycadwork.element.beam  # noqa: F401
-    import pycadwork.element.connector_axis  # noqa: F401
-    import pycadwork.element.drilling  # noqa: F401
-    import pycadwork.element.node  # noqa: F401
-    import pycadwork.element.opening  # noqa: F401
-    import pycadwork.element.plate  # noqa: F401
-    import pycadwork.element.surface  # noqa: F401
-
-    # Aggregates — deferred to avoid the circular import.
-    import pycadwork.cover.roof  # noqa: F401
-    import pycadwork.cover.slab  # noqa: F401
-    import pycadwork.cover.wall  # noqa: F401

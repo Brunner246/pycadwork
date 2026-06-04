@@ -9,6 +9,7 @@ sub-adapter (and its fake counterpart in ``tests/_fakes``).
 from __future__ import annotations
 
 from pycadwork.cadwork_adapter._attributes import AttributesAdapter
+from pycadwork.cadwork_adapter._bim import BimAdapter
 from pycadwork.cadwork_adapter._display import DisplayAdapter
 from pycadwork.cadwork_adapter._elements import ElementsAdapter
 from pycadwork.cadwork_adapter._geometry import GeometryAdapter
@@ -19,7 +20,15 @@ from pycadwork.cadwork_adapter._project import ProjectAdapter
 class CadworkAdapter:
     """Facade over cwapi3d. Sub-adapters are grouped by responsibility."""
 
-    __slots__ = ("elements", "attributes", "geometry", "grouping", "display", "project")
+    __slots__ = (
+        "elements",
+        "attributes",
+        "geometry",
+        "grouping",
+        "display",
+        "project",
+        "bim",
+    )
 
     def __init__(self) -> None:
         self.elements: ElementsAdapter = ElementsAdapter()
@@ -28,3 +37,4 @@ class CadworkAdapter:
         self.grouping: GroupingAdapter = GroupingAdapter()
         self.display: DisplayAdapter = DisplayAdapter()
         self.project: ProjectAdapter = ProjectAdapter()
+        self.bim: BimAdapter = BimAdapter()
