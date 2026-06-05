@@ -6,9 +6,15 @@ from pycadwork.element.auxiliary import AuxiliaryElement
 from pycadwork.element.base import Element
 from pycadwork.element.beam import Beam, CrossSection
 from pycadwork.element.connector_axis import ConnectorAxis
+from pycadwork.element.container import (
+    Container,
+    discover_containers,
+    parent_container,
+)
 from pycadwork.element.drilling import Drilling
 from pycadwork.element.factory import from_id
 from pycadwork.element.linear import LinearElement
+from pycadwork.element.mep import CircularMep, RectangularMep
 from pycadwork.element.node import Line, Node
 from pycadwork.element.opening import Opening
 from pycadwork.element.oriented import OrientedElement
@@ -28,7 +34,9 @@ __all__ = [
     "REGISTRY",
     "AuxiliaryElement",
     "Beam",
+    "CircularMep",
     "ConnectorAxis",
+    "Container",
     "CrossSection",
     "Drilling",
     "Element",
@@ -39,7 +47,10 @@ __all__ = [
     "Opening",
     "OrientedElement",
     "Plate",
+    "RectangularMep",
     "Surface",
+    "discover_containers",
     "from_id",
+    "parent_container",
     "register_element",
 ]

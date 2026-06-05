@@ -83,6 +83,22 @@ class Aggregate(Element):
         """Children narrowed to runtime type ``cls`` (or subclass)."""
         return [e for e in self.children if isinstance(e, cls)]
 
+    def children_by_type(self) -> dict[type[Element], list[Element]]:
+        """Children grouped by their concrete wrapper class.
+
+        One model scan; the keys answer "what types are in here?" and the values
+        are the elements of each type -- subsuming repeated ``children_of`` probing.
+        """
+        grouped: dict[type[Element], list[Element]] = {}
+        for e in self.children:
+            grouped.setdefault(type(e), []).append(e)
+        return grouped
+
+    @property
+    def child_types(self) -> set[type[Element]]:
+        """Distinct concrete wrapper classes present among the children."""
+        return set(self.children_by_type())
+
     # ---- imperative mutation ----
 
     def add_child(self, element: Element) -> None:

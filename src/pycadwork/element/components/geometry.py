@@ -165,6 +165,45 @@ class OrientedGeometry(LinearGeometry):
         cadwork.geometry.set_height([self._id], thickness)
 
 
+class CircularGeometry(LinearGeometry):
+    """Axis geometry whose cross-section is a single diameter (a pipe).
+
+    A circular run has no rectangular cross-section -- the backend carries the
+    diameter in *both* its width and height channels. Those channels are
+    therefore suppressed here in favour of the semantic :attr:`diameter` /
+    :attr:`radius` surface; reading ``width`` or ``height`` raises
+    :class:`AttributeError`.
+    """
+
+    __slots__ = ()
+
+    @property
+    def diameter(self) -> float:
+        return cadwork.geometry.get_width(self._id)
+
+    @diameter.setter
+    def diameter(self, diameter: float) -> None:
+        # Keep both backend channels in step — a circle is diameter on each.
+        cadwork.geometry.set_width([self._id], diameter)
+        cadwork.geometry.set_height([self._id], diameter)
+
+    @property
+    def radius(self) -> float:
+        return self.diameter / 2.0
+
+    @property
+    def width(self) -> float:
+        raise AttributeError(
+            "CircularGeometry has no rectangular 'width'; use 'diameter' or 'radius'"
+        )
+
+    @property
+    def height(self) -> float:
+        raise AttributeError(
+            "CircularGeometry has no rectangular 'height'; use 'diameter' or 'radius'"
+        )
+
+
 class NodeGeometry(Geometry):
     """Geometry for a positioned point: a single :attr:`position` accessor."""
 

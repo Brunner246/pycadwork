@@ -57,7 +57,7 @@ class StoreyAssigner:
         user_attribute. Returns one :class:`StoreyAssignment` per processed
         element as a report.
         """
-        stack = self._build_stack()
+        storey_stack = self._build_stack()
         building = self._building.value
 
         aggregates: list[Aggregate] = []
@@ -75,7 +75,7 @@ class StoreyAssigner:
         for aggregate in aggregates:
             if aggregate.id in seen:
                 continue
-            classification = self._classify(stack, aggregate)
+            classification = self._classify(storey_stack, aggregate)
             ids = [aggregate.id] + [child.id for child in aggregate.children]
             cadwork.bim.set_building_and_storey(
                 ids, building, classification.storey.name.value
@@ -91,7 +91,7 @@ class StoreyAssigner:
         for element in loose:
             if element.id in seen:
                 continue
-            classification = self._classify(stack, element)
+            classification = self._classify(storey_stack, element)
             seen.add(element.id)
             by_storey.setdefault(classification.storey.name.value, []).append(
                 element.id
@@ -119,7 +119,8 @@ class StoreyAssigner:
         ]
         return StoreyStack(storeys)
 
-    def _classify(self, stack: StoreyStack, element: Element) -> StoreyClassification:
+    @staticmethod
+    def _classify(stack: StoreyStack, element: Element) -> StoreyClassification:
         box = element.geometry.aabb
         return stack.classify(box.min_point.z, box.max_point.z)
 

@@ -146,6 +146,7 @@ class _FakeElement:
     assembly_number: str = ""
     building: str = ""
     storey: str = ""
+    container_parent: ElementId = 0
     user_attributes: dict[int, str] = field(default_factory=dict)
     p1: PointTuple = (0.0, 0.0, 0.0)
     p2: PointTuple = (0.0, 0.0, 0.0)
@@ -306,6 +307,51 @@ class FakeElementsAdapter:
         el.width = el.height = diameter
         return el.eid
 
+    def create_circular_mep(self, diameter: float, points: list[Point3D]) -> ElementId:
+        snap = ElementTypeSnapshot(is_circular_mep=True)
+        el = self._state.alloc(snap)
+        t1, t2 = _tup(points[0]), _tup(points[-1])
+        el.p1, el.p2 = t1, t2
+        el.p3 = (t1[0], t1[1], t1[2] + 1.0)
+        el.length = _distance(t1, t2)
+        el.width = el.height = diameter
+        return el.eid
+
+    def create_rectangular_mep(
+        self, width: float, depth: float, points: list[Point3D]
+    ) -> ElementId:
+        snap = ElementTypeSnapshot(is_rectangular_mep=True)
+        el = self._state.alloc(snap)
+        t1, t2 = _tup(points[0]), _tup(points[-1])
+        el.p1, el.p2 = t1, t2
+        el.p3 = (t1[0], t1[1], t1[2] + 1.0)
+        el.length = _distance(t1, t2)
+        el.width, el.height = width, depth
+        return el.eid
+
+    def create_auto_container_from_standard(
+        self, eids: list[ElementId], output_name: str, standard_element_name: str
+    ) -> ElementId:
+        snap = ElementTypeSnapshot(is_container=True)
+        el = self._state.alloc(snap)
+        el.name = output_name
+        for cid in eids:
+            self._state.elements[cid].container_parent = el.eid
+        return el.eid
+
+    def create_auto_container_from_standard_with_reference(
+        self,
+        eids: list[ElementId],
+        output_name: str,
+        standard_element_name: str,
+        reference_eid: ElementId,
+    ) -> ElementId:
+        # The reference only affects placement in real cadwork; for the
+        # in-memory containment model it behaves like the plain variant.
+        return self.create_auto_container_from_standard(
+            eids, output_name, standard_element_name
+        )
+
     def create_node(self, position: Point3D) -> ElementId:
         snap = ElementTypeSnapshot(is_node=True)
         el = self._state.alloc(snap)
@@ -358,6 +404,27 @@ class FakeElementsAdapter:
 
     def get_element_type(self, eid: ElementId) -> ElementTypeSnapshot:
         return self._state.elements[eid].snapshot
+
+    # ---- container content ----
+
+    def get_container_content_elements(self, eid: ElementId) -> list[ElementId]:
+        return [
+            cid
+            for cid, el in self._state.elements.items()
+            if el.container_parent == eid
+        ]
+
+    def get_parent_container_id(self, eid: ElementId) -> ElementId:
+        return self._state.elements[eid].container_parent
+
+    def set_container_contents(
+        self, container_eid: ElementId, eids: list[ElementId]
+    ) -> None:
+        for el in self._state.elements.values():
+            if el.container_parent == container_eid:
+                el.container_parent = 0
+        for cid in eids:
+            self._state.elements[cid].container_parent = container_eid
 
     # ---- identifiable enumeration ----
 

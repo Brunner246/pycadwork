@@ -88,6 +88,43 @@ def test_wall_replace_children_swaps_set():
     assert b.attrs.group == ""
 
 
+def _plate() -> Plate:
+    return Plate.create_rectangular(
+        PanelSection(600, 18),
+        AxisPoints(Point3D(0, 0, 0), Point3D(2400, 0, 0), Point3D(0, 0, 1)),
+    )
+
+
+def _drilling() -> Drilling:
+    return Drilling.create(10, Segment(Point3D(0, 0, 0), Point3D(0, 0, 100)))
+
+
+def test_child_types_reports_distinct_classes():
+    wall, a, b = _wall_with_two_beams()
+    wall.add_children([_plate(), _drilling()])
+    assert wall.child_types == {Beam, Plate, Drilling}
+
+
+def test_children_by_type_groups_children():
+    wall, a, b = _wall_with_two_beams()
+    wall.add_children([_plate(), _drilling()])
+    by_type = wall.children_by_type()
+    assert set(by_type) == wall.child_types
+    assert all(isinstance(v, list) for v in by_type.values())
+    flat_ids = {e.id for elems in by_type.values() for e in elems}
+    assert flat_ids == {c.id for c in wall.children}
+
+
+def test_child_types_empty_when_no_children():
+    cadwork.grouping.set_element_grouping_type(GroupingMode.GROUP)
+    a = _stud(0)
+    cadwork.attributes.set_cover_kind([a.id], CoverKind.FRAMED_WALL)
+    cadwork.attributes.set_group([a.id], "Lonely")
+    wall = Wall(a.id)
+    assert wall.child_types == set()
+    assert wall.children_by_type() == {}
+
+
 def test_set_kind_rejects_a_non_wall_kind():
     wall, _, _ = _wall_with_two_beams()
     with pytest.raises(ValueError):
