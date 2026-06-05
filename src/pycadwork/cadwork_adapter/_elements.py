@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from pycadwork.cadwork_adapter._helpers import to_cadwork_point
@@ -115,6 +116,48 @@ class ElementsAdapter:
             diameter, _pt(cadwork, axis.p1), _pt(cadwork, axis.p2)
         )
 
+    def create_circular_mep(
+        self, diameter: float, points: Sequence[Point3D]
+    ) -> ElementId:
+        import cadwork
+        import element_controller
+
+        return element_controller.create_circular_mep(
+            diameter, [_pt(cadwork, p) for p in points]
+        )
+
+    def create_rectangular_mep(
+        self, width: float, depth: float, points: Sequence[Point3D]
+    ) -> ElementId:
+        import cadwork
+        import element_controller
+
+        return element_controller.create_rectangular_mep(
+            width, depth, [_pt(cadwork, p) for p in points]
+        )
+
+    def create_auto_container_from_standard(
+        self, eids: list[ElementId], output_name: str, standard_element_name: str
+    ) -> ElementId:
+        import element_controller
+
+        return element_controller.create_auto_container_from_standard(
+            list(eids), output_name, standard_element_name
+        )
+
+    def create_auto_container_from_standard_with_reference(
+        self,
+        eids: list[ElementId],
+        output_name: str,
+        standard_element_name: str,
+        reference_eid: ElementId,
+    ) -> ElementId:
+        import element_controller
+
+        return element_controller.create_auto_container_from_standard_with_reference(
+            list(eids), output_name, standard_element_name, reference_eid
+        )
+
     def create_node(self, position: Point3D) -> ElementId:
         import cadwork
         import element_controller
@@ -177,6 +220,9 @@ class ElementsAdapter:
             is_circular_beam=is_circ,
             is_steel_shape=t.is_steel_shape(),
             is_panel=t.is_panel(),
+            is_circular_mep=t.is_circular_mep(),
+            is_rectangular_mep=t.is_rectangular_mep(),
+            is_container=t.is_container(),
             is_drilling=t.is_drilling_axis(),
             is_node=t.is_normal_node() or t.is_connector_node(),
             is_surface=t.is_surface(),
@@ -195,6 +241,26 @@ class ElementsAdapter:
             is_connector_axis=attribute_controller.is_connector_axis(eid),
             is_auxiliary=attribute_controller.is_auxiliary(eid),
         )
+
+    # ---- container content ----
+
+    def get_container_content_elements(self, eid: ElementId) -> list[ElementId]:
+        import element_controller
+
+        return list(element_controller.get_container_content_elements(eid))
+
+    def get_parent_container_id(self, eid: ElementId) -> ElementId:
+        """The id of ``eid``'s parent container, or ``0`` when it has none."""
+        import element_controller
+
+        return element_controller.get_parent_container_id(eid)
+
+    def set_container_contents(
+        self, container_eid: ElementId, eids: list[ElementId]
+    ) -> None:
+        import element_controller
+
+        element_controller.set_container_contents(container_eid, list(eids))
 
     # ---- identifiable enumeration ----
 

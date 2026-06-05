@@ -35,7 +35,7 @@ class Storey:
 
 @dataclass(frozen=True, slots=True)
 class StoreyClassification:
-    """The storey an extent belongs to, plus whether it straddles a plane."""
+    """The storey to which an extent belongs, plus whether it straddles a plane."""
 
     storey: Storey
     spans: bool
@@ -79,7 +79,10 @@ class StoreyStack:
         if z_hi - z_lo <= _EPSILON:
             return StoreyClassification(self._containing(z_lo), spans=False)
 
-        overlaps = [self._overlap(i, z_lo, z_hi) for i in range(len(self._storeys))]
+        overlaps = [
+            self._overlap(storey_index, z_lo, z_hi)
+            for storey_index in range(len(self._storeys))
+        ]
         best = max(range(len(self._storeys)), key=lambda i: overlaps[i])
 
         touched = sum(1 for o in overlaps if o > _EPSILON)
@@ -90,15 +93,15 @@ class StoreyStack:
 
     # ---- internals ----
 
-    def _ceiling(self, i: int) -> float:
-        """Top of storey ``i``'s interval; +inf for the topmost storey."""
-        if i + 1 < len(self._elevations):
-            return self._elevations[i + 1]
+    def _ceiling(self, storey_index: int) -> float:
+        """Top of a storey's interval; +inf for the topmost storey."""
+        if storey_index + 1 < len(self._elevations):
+            return self._elevations[storey_index + 1]
         return math.inf
 
-    def _overlap(self, i: int, z_lo: float, z_hi: float) -> float:
-        floor = self._elevations[i]
-        ceiling = self._ceiling(i)
+    def _overlap(self, storey_index: int, z_lo: float, z_hi: float) -> float:
+        floor = self._elevations[storey_index]
+        ceiling = self._ceiling(storey_index)
         return max(0.0, min(z_hi, ceiling) - max(z_lo, floor))
 
     def _containing(self, z: float) -> Storey:

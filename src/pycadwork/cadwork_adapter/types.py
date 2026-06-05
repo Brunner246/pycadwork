@@ -63,6 +63,9 @@ class ElementTypeSnapshot:
     is_polygon_beam: bool = False
     is_steel_shape: bool = False
     is_panel: bool = False
+    is_circular_mep: bool = False
+    is_rectangular_mep: bool = False
+    is_container: bool = False
     is_drilling: bool = False
     is_node: bool = False
     is_surface: bool = False

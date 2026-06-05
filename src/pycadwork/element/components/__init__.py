@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pycadwork.element.components.attributes import Attributes
 from pycadwork.element.components.geometry import (
+    CircularGeometry,
     Geometry,
     LinearGeometry,
     NodeGeometry,
@@ -18,6 +19,7 @@ from pycadwork.element.components.geometry import (
 
 __all__ = [
     "Attributes",
+    "CircularGeometry",
     "Geometry",
     "LinearGeometry",
     "NodeGeometry",
