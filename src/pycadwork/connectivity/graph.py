@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections import deque
 from collections.abc import Callable, Iterable, Iterator
 
+from pycadwork.cadwork_adapter.types import ElementId
 from pycadwork.connectivity.detection import (
     DEFAULT_TOLERANCE,
     active_elements,
@@ -171,7 +172,8 @@ def _build_geometric(
 
     for a in nodes:
         query = a.geometry.aabb.expanded(tolerance)
-        for cand_id in index.intersection(query):
+        for raw_id in index.intersection(query):
+            cand_id = ElementId(raw_id)
             # Add each pair once; smaller id drives, self is skipped.
             if a.id < cand_id:
                 b = by_id[cand_id]

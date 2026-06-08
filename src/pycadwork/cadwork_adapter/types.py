@@ -10,9 +10,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Protocol
+from typing import NewType, Protocol
 
-ElementId = int
+# A cadwork element id. A ``NewType``, not a bare ``int``: at runtime it *is* the
+# int cadwork uses, but a type checker keeps it distinct from an arbitrary int
+# and from the other seam ids (see ``pycadwork.persistence._ids``), so the
+# element-id parameters threaded through every adapter call cannot be transposed
+# with an unrelated integer.
+ElementId = NewType("ElementId", int)
 PointTuple = tuple[float, float, float]
 
 

@@ -18,6 +18,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from pycadwork.cadwork_adapter import cadwork
+from pycadwork.cadwork_adapter.types import ElementId
 from pycadwork.element.cover.aggregate import Aggregate
 from pycadwork.element.factory import from_id
 
@@ -30,8 +31,10 @@ def discover_covers(ids: Iterable[int] | None = None) -> list[Aggregate]:
     ``Aggregate.children`` — discovery only finds the parents.
     """
     elements = cadwork.elements
-    eids: Iterable[int] = (
-        list(ids) if ids is not None else elements.get_active_identifiable_element_ids()
+    eids: Iterable[ElementId] = (
+        [ElementId(i) for i in ids]
+        if ids is not None
+        else elements.get_active_identifiable_element_ids()
     )
 
     covers: list[Aggregate] = []

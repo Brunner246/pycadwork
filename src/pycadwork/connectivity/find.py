@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 
+from pycadwork.cadwork_adapter.types import ElementId
 from pycadwork.connectivity.detection import (
     DEFAULT_TOLERANCE,
     active_elements,
@@ -48,8 +49,10 @@ def _find_geometric(
     index = RTreeIndex3D((other.id, other.geometry.aabb) for other in others)
 
     query = element.geometry.aabb.expanded(tolerance)
+    # The spatial index speaks raw ints; re-tag them as element ids on the way out.
+    candidates = [ElementId(cand_id) for cand_id in index.intersection(query)]
     return [
         by_id[cand_id]
-        for cand_id in index.intersection(query)
+        for cand_id in candidates
         if geometric_connects(element, by_id[cand_id], tolerance)
     ]

@@ -33,9 +33,12 @@ class GroupingAdapter:
 
         f = cadwork.element_filter()
         f.set_group(group)
-        return element_controller.filter_elements(
-            element_controller.get_all_identifiable_element_ids(), f
-        )
+        return [
+            ElementId(e)
+            for e in element_controller.filter_elements(
+                element_controller.get_all_identifiable_element_ids(), f
+            )
+        ]
 
     def filter_elements_by_subgroup(self, subgroup: str) -> list[ElementId]:
         import cadwork
@@ -43,6 +46,9 @@ class GroupingAdapter:
 
         f = cadwork.element_filter()
         f.set_subgroup(subgroup)
-        return element_controller.filter_elements(
-            element_controller.get_all_identifiable_element_ids(), f
-        )
+        return [
+            ElementId(e)
+            for e in element_controller.filter_elements(
+                element_controller.get_all_identifiable_element_ids(), f
+            )
+        ]

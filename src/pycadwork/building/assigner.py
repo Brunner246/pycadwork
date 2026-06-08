@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pycadwork.building.names import BuildingName, StoreyName
 from pycadwork.building.storey import Storey, StoreyClassification, StoreyStack
 from pycadwork.cadwork_adapter import cadwork
+from pycadwork.cadwork_adapter.types import ElementId
 from pycadwork.element import Element
 from pycadwork.element.cover import Aggregate
 from pycadwork.utility import suppressed_display
@@ -87,7 +88,7 @@ class StoreyAssigner:
             )
 
         # Loose elements: classify individually, batch the storey writes.
-        by_storey: dict[str, list[int]] = {}
+        by_storey: dict[str, list[ElementId]] = {}
         for element in loose:
             if element.id in seen:
                 continue
@@ -124,7 +125,7 @@ class StoreyAssigner:
         box = element.geometry.aabb
         return stack.classify(box.min_point.z, box.max_point.z)
 
-    def _maybe_mark(self, eid: int, classification: StoreyClassification) -> None:
+    def _maybe_mark(self, eid: ElementId, classification: StoreyClassification) -> None:
         if classification.spans:
             cadwork.attributes.set_user_attribute(
                 [eid], self._mark_index, self._mark_value

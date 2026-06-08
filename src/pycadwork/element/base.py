@@ -69,7 +69,7 @@ class Element(Generic[GeometryT]):
     geometry: GeometryT
 
     def __init__(self, element_id: int) -> None:
-        self._id: ElementId = int(element_id)
+        self._id: ElementId = ElementId(int(element_id))
         self._type: ElementTypeSnapshot | None = None
         self.attrs: Attributes = Attributes(self._id)
         self.geometry = cast(GeometryT, type(self)._geometry_cls(self._id))
@@ -77,7 +77,7 @@ class Element(Generic[GeometryT]):
     # ---- identity ----
 
     @property
-    def id(self) -> int:
+    def id(self) -> ElementId:
         return self._id
 
     @property

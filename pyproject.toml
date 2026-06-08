@@ -1,6 +1,6 @@
 [project]
 name = "pycadwork"
-version = "0.1.3"
+version = "0.1.4"
 description = "OOP layer over cwapi3d (cadwork 3D Python API)"
 readme = "README.md"
 requires-python = ">=3.14"

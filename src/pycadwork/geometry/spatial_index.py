@@ -22,13 +22,17 @@ The concrete :class:`RTreeIndex3D` wraps the ``rtree`` Python binding around
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
-from typing import Protocol, runtime_checkable
-
-from rtree import index as _rtree_index
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from pycadwork.geometry.aabb import AxisAlignedBoundingBox
 from pycadwork.geometry.obb import OrientedBoundingBox
 from pycadwork.geometry.point3d import Point3D
+
+if TYPE_CHECKING:
+    # rtree (libspatialindex) is an optional native dependency, imported lazily
+    # in _build_index so the package still imports where it isn't installed
+    # (e.g. cadwork's embedded Python). Only constructing an RTreeIndex3D needs it.
+    from rtree import index as _rtree_index
 
 BoundingRegion3D = AxisAlignedBoundingBox | OrientedBoundingBox
 
@@ -61,7 +65,18 @@ class SpatialIndex3D(SpatialQuery3D, Protocol):
     def clear(self) -> None: ...
 
 
-def _build_index() -> _rtree_index.Index:
+def _build_index() -> "_rtree_index.Index":
+    try:
+        from rtree import index as _rtree_index
+    except ImportError as exc:
+        raise ModuleNotFoundError(
+            "RTreeIndex3D needs the optional 'rtree' package (libspatialindex), "
+            "which isn't installed in this interpreter. Install it with:\n"
+            "    python -m pip install rtree\n"
+            "Inside cadwork, target its embedded Python, e.g.:\n"
+            '    & "D:\\cadwork.dir\\exe_2026\\PCLIB.x64\\python314\\python.exe" '
+            "-m pip install rtree"
+        ) from exc
     props = _rtree_index.Property()
     props.dimension = 3
     return _rtree_index.Index(properties=props)
