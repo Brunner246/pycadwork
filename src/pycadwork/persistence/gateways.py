@@ -1,18 +1,18 @@
-"""Table Data Gateways — one per table, all SQL lives here.
+"""Table Data Gateways — one per table, all DML built by the SQL builder.
 
 Each gateway owns the four statements for its table: ``upsert`` (insert, or
 update on PK conflict — the idempotent path a repeated ``pull`` takes),
-``update``, ``delete``, and ``select_for_project``. No SQL string appears
-anywhere else in the package.
+``update``, ``delete``, and ``select_for_project``. None of them write SQL by
+hand: every statement is assembled by :mod:`pycadwork.persistence.sql` from the
+gateway's :class:`~pycadwork.persistence.sql.Table` definition.
 
-The :class:`TableDataGateway` base does the work generically: a record's field
-names match its table's column names one-for-one and in order (enforced by
-:mod:`pycadwork.persistence.records` / :mod:`~pycadwork.persistence.schema`),
-so a record (de)serializes with a single positional pass. A concrete gateway is
-then just three class attributes — ``record_cls``, ``table``, ``columns``,
-``pk`` — plus, where a column needs a Python type SQLite can't round-trip on its
-own, an override of :meth:`TableDataGateway._from_row` (only the storey-spanning
-``bool`` needs this).
+That ``Table`` is the *single source of truth* for the table's shape — the same
+object :mod:`pycadwork.persistence.schema` renders to DDL. A record's field names
+match its table's column names one-for-one and in order, so a record
+(de)serializes with a single positional pass. A concrete gateway is then just two
+class attributes — ``record_cls`` and ``schema`` — plus, where a column needs a
+Python type SQLite can't round-trip on its own, an override of
+:meth:`TableDataGateway._from_row` (only the storey-spanning ``bool`` needs this).
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ from typing import Any, Generic, TypeVar
 
 from pycadwork.persistence._connection import GatewayConnection
 from pycadwork.persistence._ids import ElementId, ProjectGuid
+from pycadwork.persistence.sql import Delete, Insert, Select, Table, Update
 from pycadwork.persistence.records import (
     AttributeRecord,
     BuildingRecord,
@@ -34,6 +35,18 @@ from pycadwork.persistence.records import (
     StoreyRecord,
     UserAttributeRecord,
 )
+from pycadwork.persistence.schema import (
+    ATTRIBUTE,
+    BUILDING,
+    CONTAINER_MEMBER,
+    COVER,
+    ELEMENT,
+    GEOMETRY,
+    PROJECT,
+    STOREY,
+    STOREY_ASSIGNMENT,
+    USER_ATTRIBUTE,
+)
 
 R = TypeVar("R")
 
@@ -42,9 +55,7 @@ class TableDataGateway(Generic[R]):
     """Generic Table Data Gateway: maps one record type ↔ one table's rows."""
 
     record_cls: type[R]
-    table: str
-    columns: tuple[str, ...]
-    pk: tuple[str, ...]
+    schema: Table
 
     __slots__ = ("_connection",)
 
@@ -54,13 +65,10 @@ class TableDataGateway(Generic[R]):
     # ---- row <-> record ----
 
     def _to_row(self, record: R) -> tuple[Any, ...]:
-        return tuple(getattr(record, column) for column in self.columns)
+        return tuple(getattr(record, column) for column in self.schema.column_names)
 
     def _from_row(self, row: tuple[Any, ...]) -> R:
-        return self.record_cls(**dict(zip(self.columns, row)))
-
-    def _non_pk_columns(self) -> tuple[str, ...]:
-        return tuple(c for c in self.columns if c not in self.pk)
+        return self.record_cls(**dict(zip(self.schema.column_names, row)))
 
     # ---- operations ----
 
@@ -72,48 +80,27 @@ class TableDataGateway(Generic[R]):
         ``container_member``) have nothing to update, so the conflict resolves
         to ``DO NOTHING``.
         """
-        placeholders = ", ".join("?" for _ in self.columns)
-        column_list = ", ".join(self.columns)
-        conflict = ", ".join(self.pk)
-        non_pk = self._non_pk_columns()
-        if non_pk:
-            assignments = ", ".join(f"{c} = excluded.{c}" for c in non_pk)
-            action = f"DO UPDATE SET {assignments}"
-        else:
-            action = "DO NOTHING"
-        sql = (
-            f"INSERT INTO {self.table} ({column_list}) VALUES ({placeholders}) "
-            f"ON CONFLICT ({conflict}) {action}"
-        )
+        sql = Insert(self.schema).on_conflict_update().sql()
         self._connection.execute(sql, self._to_row(record))
 
     def update(self, record: R) -> None:
         """Update ``record``'s non-key columns, matched by primary key."""
-        non_pk = self._non_pk_columns()
+        non_pk = self.schema.non_pk_columns()
         if not non_pk:
             return
-        assignments = ", ".join(f"{c} = ?" for c in non_pk)
-        where = " AND ".join(f"{c} = ?" for c in self.pk)
         params = [getattr(record, c) for c in non_pk]
-        params += [getattr(record, c) for c in self.pk]
-        self._connection.execute(
-            f"UPDATE {self.table} SET {assignments} WHERE {where}", params
-        )
+        params += [getattr(record, c) for c in self.schema.primary_key]
+        self._connection.execute(Update(self.schema).sql(), params)
 
     def delete(self, record: R) -> None:
         """Delete the row matching ``record``'s primary key."""
-        where = " AND ".join(f"{c} = ?" for c in self.pk)
-        params = [getattr(record, c) for c in self.pk]
-        self._connection.execute(f"DELETE FROM {self.table} WHERE {where}", params)
+        params = [getattr(record, c) for c in self.schema.primary_key]
+        self._connection.execute(Delete(self.schema).sql(), params)
 
     def _select_where(self, **equals: Any) -> list[R]:
         """Rows whose columns equal the given values (AND-combined), as records."""
-        where = " AND ".join(f"{c} = ?" for c in equals)
-        column_list = ", ".join(self.columns)
-        rows = self._connection.execute(
-            f"SELECT {column_list} FROM {self.table} WHERE {where}",
-            list(equals.values()),
-        )
+        sql = Select(self.schema).where_eq(*equals).sql()
+        rows = self._connection.execute(sql, list(equals.values()))
         return [self._from_row(row) for row in rows]
 
     def select_for_project(self, project_guid: ProjectGuid) -> list[R]:
@@ -123,39 +110,12 @@ class TableDataGateway(Generic[R]):
 
 class ProjectGateway(TableDataGateway[ProjectRecord]):
     record_cls = ProjectRecord
-    table = "project"
-    columns = (
-        "project_guid",
-        "name",
-        "number",
-        "part",
-        "architect",
-        "customer",
-        "designer",
-        "deadline",
-        "description",
-        "address",
-        "postal_code",
-        "city",
-        "country",
-        "latitude",
-        "longitude",
-        "elevation",
-    )
-    pk = ("project_guid",)
+    schema = PROJECT
 
 
 class ElementGateway(TableDataGateway[ElementRecord]):
     record_cls = ElementRecord
-    table = "element"
-    columns = (
-        "project_guid",
-        "id",
-        "element_type",
-        "cadwork_guid",
-        "parent_container_id",
-    )
-    pk = ("project_guid", "id")
+    schema = ELEMENT
 
     def select_for_ids(
         self, project_guid: ProjectGuid, ids: Sequence[ElementId]
@@ -163,106 +123,54 @@ class ElementGateway(TableDataGateway[ElementRecord]):
         """The element rows for ``ids`` within ``project_guid`` (``id`` is the key).
 
         ``_select_where`` cannot serve this — it tests equality, and this needs an
-        ``IN`` set — so the one variadic ``IN`` clause in the package lives here.
+        ``IN`` set — so the one ``IN`` clause in the package is built here.
         An empty ``ids`` short-circuits to ``[]`` (an empty ``IN ()`` is invalid SQL).
         """
         if not ids:
             return []
-        placeholders = ", ".join("?" for _ in ids)
-        column_list = ", ".join(self.columns)
-        rows = self._connection.execute(
-            f"SELECT {column_list} FROM {self.table} "
-            f"WHERE project_guid = ? AND id IN ({placeholders})",
-            [project_guid, *ids],
+        sql = (
+            Select(self.schema)
+            .where_eq("project_guid")
+            .where_in("id", len(ids))
+            .sql()
         )
+        rows = self._connection.execute(sql, [project_guid, *ids])
         return [self._from_row(row) for row in rows]
 
 
 class AttributeGateway(TableDataGateway[AttributeRecord]):
     record_cls = AttributeRecord
-    table = "attribute"
-    columns = (
-        "project_guid",
-        "element_id",
-        "name",
-        "group_name",
-        "subgroup",
-        "comment",
-        "material_name",
-        "sku",
-        "production_number",
-        "part_number",
-        "assembly_number",
-    )
-    pk = ("project_guid", "element_id")
+    schema = ATTRIBUTE
 
 
 class GeometryGateway(TableDataGateway[GeometryRecord]):
     record_cls = GeometryRecord
-    table = "geometry"
-    columns = (
-        "project_guid",
-        "element_id",
-        "p1x",
-        "p1y",
-        "p1z",
-        "p2x",
-        "p2y",
-        "p2z",
-        "p3x",
-        "p3y",
-        "p3z",
-        "length",
-        "width",
-        "height",
-        "volume",
-        "weight",
-        "cog_x",
-        "cog_y",
-        "cog_z",
-        "aabb_min_x",
-        "aabb_min_y",
-        "aabb_min_z",
-        "aabb_max_x",
-        "aabb_max_y",
-        "aabb_max_z",
-    )
-    pk = ("project_guid", "element_id")
+    schema = GEOMETRY
 
 
 class UserAttributeGateway(TableDataGateway[UserAttributeRecord]):
     record_cls = UserAttributeRecord
-    table = "user_attribute"
-    columns = ("project_guid", "element_id", "attr_index", "value")
-    pk = ("project_guid", "element_id", "attr_index")
+    schema = USER_ATTRIBUTE
 
 
 class CoverGateway(TableDataGateway[CoverRecord]):
     record_cls = CoverRecord
-    table = "cover"
-    columns = ("project_guid", "element_id", "cover_kind")
-    pk = ("project_guid", "element_id")
+    schema = COVER
 
 
 class ContainerMemberGateway(TableDataGateway[ContainerMemberRecord]):
     record_cls = ContainerMemberRecord
-    table = "container_member"
-    columns = ("project_guid", "container_id", "member_id")
-    pk = ("project_guid", "container_id", "member_id")
+    schema = CONTAINER_MEMBER
 
 
 class BuildingGateway(TableDataGateway[BuildingRecord]):
     record_cls = BuildingRecord
-    table = "building"
-    columns = ("project_guid", "name")
-    pk = ("project_guid", "name")
+    schema = BUILDING
 
 
 class StoreyGateway(TableDataGateway[StoreyRecord]):
     record_cls = StoreyRecord
-    table = "storey"
-    columns = ("project_guid", "building_name", "name", "elevation")
-    pk = ("project_guid", "building_name", "name")
+    schema = STOREY
 
     def select_for_building(
         self, project_guid: ProjectGuid, building_name: str
@@ -275,9 +183,7 @@ class StoreyGateway(TableDataGateway[StoreyRecord]):
 
 class StoreyAssignmentGateway(TableDataGateway[StoreyAssignmentRecord]):
     record_cls = StoreyAssignmentRecord
-    table = "storey_assignment"
-    columns = ("project_guid", "element_id", "building_name", "storey_name", "spans")
-    pk = ("project_guid", "element_id")
+    schema = STOREY_ASSIGNMENT
 
     def select_for_storey(
         self, project_guid: ProjectGuid, building_name: str, storey_name: str
@@ -292,6 +198,6 @@ class StoreyAssignmentGateway(TableDataGateway[StoreyAssignmentRecord]):
     def _from_row(self, row: tuple[Any, ...]) -> StoreyAssignmentRecord:
         # SQLite stores the ``spans`` bool as 0/1 and reads it back as int;
         # coerce it to bool so the record round-trips to the same type.
-        values = dict(zip(self.columns, row))
+        values = dict(zip(self.schema.column_names, row))
         values["spans"] = bool(values["spans"])
         return StoreyAssignmentRecord(**values)

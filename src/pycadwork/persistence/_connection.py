@@ -21,6 +21,12 @@ from collections.abc import Iterator, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from typing import Any, Protocol, runtime_checkable
 
+from pycadwork.persistence.sql import (
+    BEGIN,
+    COMMIT,
+    PRAGMA_FOREIGN_KEYS_ON,
+    ROLLBACK,
+)
 from pycadwork.persistence.schema import SCHEMA_SQL
 
 
@@ -51,7 +57,7 @@ class SqliteConnection:  # (GatewayConnection)
         self._conn = connection
         # Enforce the schema's foreign keys (off by default in SQLite) so a
         # cascading delete actually cascades and a dangling FK is rejected.
-        self._conn.execute("PRAGMA foreign_keys = ON")
+        self._conn.execute(PRAGMA_FOREIGN_KEYS_ON)
 
     def init_schema(self) -> None:
         """Apply :data:`SCHEMA_SQL`. Idempotent — safe to call on every open."""
@@ -69,14 +75,14 @@ class SqliteConnection:  # (GatewayConnection)
         write never reaches disk. With ``isolation_level=None`` the BEGIN /
         COMMIT are explicit SQL, not implicit Python state.
         """
-        self._conn.execute("BEGIN")
+        self._conn.execute(BEGIN)
         try:
             yield
         except BaseException:
-            self._conn.execute("ROLLBACK")
+            self._conn.execute(ROLLBACK)
             raise
         else:
-            self._conn.execute("COMMIT")
+            self._conn.execute(COMMIT)
 
     def close(self) -> None:
         self._conn.close()

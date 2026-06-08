@@ -21,6 +21,7 @@ Modules:
 * :mod:`examples.building_storeys`     — StoreyStack and StoreyAssigner
 * :mod:`examples.utilities`            — DisplayRefreshScope and batch_apply
 * :mod:`examples.persistence`          — mirror the model to SQL and back
+* :mod:`examples.sql_builder`          — the table-as-data SQL builder; query a pulled model
 
 .. note::
 
@@ -44,6 +45,7 @@ MODULES: tuple[str, ...] = (
     "building_storeys",
     "utilities",
     "persistence",
+    "sql_builder",
 )
 
 __all__ = ["MODULES"]

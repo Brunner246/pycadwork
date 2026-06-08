@@ -21,14 +21,15 @@ calls them in order, with comments and `print(...)` of the interesting result.
 | [`building_storeys.py`](building_storeys.py) | The pure `StoreyStack` classifier and the model-driven `StoreyAssigner` |
 | [`utilities.py`](utilities.py) | `DisplayRefreshScope` (context + `@auto_recreate`) and `batch_apply` |
 | [`persistence.py`](persistence.py) | `open_sqlite`, `Synchronizer` pull/push, `ModelReader`, `diff`, and raw SQL |
+| [`sql_builder.py`](sql_builder.py) | The table-as-data SQL builder (`Table` / `Column`, `create_table`, `Insert` / `Update` / `Delete` / `Select`), then using it to query a pulled model |
 
 ## Running inside cadwork vs. anywhere
 
 The examples use only the public `pycadwork` API. One of them — `geometry_basics`
 — touches no live model and runs in any interpreter. The rest *create elements*
-(including `persistence`, which mirrors a real model), so they run fully **inside
-cadwork** (where the real adapter is live) or **under the test suite's in-memory
-fake**.
+(including `persistence` and `sql_builder`, which mirror a real model), so they
+run fully **inside cadwork** (where the real adapter is live) or **under the test
+suite's in-memory fake**.
 
 A handful seed model state that a real project gets from the cadwork UI — a beam
 flagged as a wall, a building's BMT storeys. Those steps go through the

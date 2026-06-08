@@ -1,10 +1,16 @@
-"""The normalized SQL schema, embedded as one DDL string.
+"""The normalized SQL schema, declared as data and rendered to DDL.
+
+Each table is one :class:`~pycadwork.persistence.sql.Table` literal — the
+*single source of truth* for that table's shape. :data:`SCHEMA_SQL` is then
+*generated* from those literals via :func:`~pycadwork.persistence.sql.create_table`
+(no hand-written DDL), and the gateways in
+:mod:`pycadwork.persistence.gateways` read their column / key sets off the very
+same ``Table`` objects, so a table is described in exactly one place.
 
 ``SCHEMA_SQL`` is a single ``CREATE TABLE IF NOT EXISTS`` script — embedding it
-in Python (rather than shipping a ``.sql`` file) means hatch packages it into
-the wheel automatically, with no package-data configuration. Running it is
-idempotent, so :func:`pycadwork.persistence.open_sqlite` can apply it on every
-open.
+in Python (rather than shipping a ``.sql`` file) means hatch packages it into the
+wheel automatically. Running it is idempotent, so
+:func:`pycadwork.persistence.open_sqlite` can apply it on every open.
 
 The 10 tables form a 3NF model: ``project`` and ``element`` are the parents;
 ``attribute`` and ``geometry`` are 1:1 satellites split off ``element`` to keep
@@ -24,155 +30,230 @@ element row also drops its satellites in one statement (requires
 
 from __future__ import annotations
 
-SCHEMA_SQL = """
-CREATE TABLE IF NOT EXISTS project (
-    project_guid TEXT PRIMARY KEY,
-    name         TEXT NOT NULL DEFAULT '',
-    number       TEXT NOT NULL DEFAULT '',
-    part         TEXT NOT NULL DEFAULT '',
-    architect    TEXT NOT NULL DEFAULT '',
-    customer     TEXT NOT NULL DEFAULT '',
-    designer     TEXT NOT NULL DEFAULT '',
-    deadline     TEXT NOT NULL DEFAULT '',
-    description  TEXT NOT NULL DEFAULT '',
-    address      TEXT NOT NULL DEFAULT '',
-    postal_code  TEXT NOT NULL DEFAULT '',
-    city         TEXT NOT NULL DEFAULT '',
-    country      TEXT NOT NULL DEFAULT '',
-    latitude     REAL NOT NULL DEFAULT 0.0,
-    longitude    REAL NOT NULL DEFAULT 0.0,
-    elevation    REAL NOT NULL DEFAULT 0.0
-);
-
-CREATE TABLE IF NOT EXISTS element (
-    project_guid        TEXT NOT NULL,
-    id                  INTEGER NOT NULL,
-    element_type        TEXT NOT NULL,
-    cadwork_guid        TEXT NOT NULL DEFAULT '',
-    parent_container_id INTEGER,
-    PRIMARY KEY (project_guid, id),
-    FOREIGN KEY (project_guid) REFERENCES project (project_guid) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS attribute (
-    project_guid      TEXT NOT NULL,
-    element_id        INTEGER NOT NULL,
-    name              TEXT NOT NULL DEFAULT '',
-    group_name        TEXT NOT NULL DEFAULT '',
-    subgroup          TEXT NOT NULL DEFAULT '',
-    comment           TEXT NOT NULL DEFAULT '',
-    material_name     TEXT NOT NULL DEFAULT '',
-    sku               TEXT NOT NULL DEFAULT '',
-    production_number INTEGER NOT NULL DEFAULT 0,
-    part_number       TEXT NOT NULL DEFAULT '',
-    assembly_number   TEXT NOT NULL DEFAULT '',
-    PRIMARY KEY (project_guid, element_id),
-    FOREIGN KEY (project_guid, element_id)
-        REFERENCES element (project_guid, id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS geometry (
-    project_guid TEXT NOT NULL,
-    element_id   INTEGER NOT NULL,
-    p1x REAL NOT NULL DEFAULT 0.0,
-    p1y REAL NOT NULL DEFAULT 0.0,
-    p1z REAL NOT NULL DEFAULT 0.0,
-    p2x REAL NOT NULL DEFAULT 0.0,
-    p2y REAL NOT NULL DEFAULT 0.0,
-    p2z REAL NOT NULL DEFAULT 0.0,
-    p3x REAL NOT NULL DEFAULT 0.0,
-    p3y REAL NOT NULL DEFAULT 0.0,
-    p3z REAL NOT NULL DEFAULT 0.0,
-    length REAL NOT NULL DEFAULT 0.0,
-    width  REAL NOT NULL DEFAULT 0.0,
-    height REAL NOT NULL DEFAULT 0.0,
-    volume REAL NOT NULL DEFAULT 0.0,
-    weight REAL NOT NULL DEFAULT 0.0,
-    cog_x REAL NOT NULL DEFAULT 0.0,
-    cog_y REAL NOT NULL DEFAULT 0.0,
-    cog_z REAL NOT NULL DEFAULT 0.0,
-    aabb_min_x REAL NOT NULL DEFAULT 0.0,
-    aabb_min_y REAL NOT NULL DEFAULT 0.0,
-    aabb_min_z REAL NOT NULL DEFAULT 0.0,
-    aabb_max_x REAL NOT NULL DEFAULT 0.0,
-    aabb_max_y REAL NOT NULL DEFAULT 0.0,
-    aabb_max_z REAL NOT NULL DEFAULT 0.0,
-    PRIMARY KEY (project_guid, element_id),
-    FOREIGN KEY (project_guid, element_id)
-        REFERENCES element (project_guid, id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS user_attribute (
-    project_guid TEXT NOT NULL,
-    element_id   INTEGER NOT NULL,
-    attr_index   INTEGER NOT NULL,
-    value        TEXT NOT NULL DEFAULT '',
-    PRIMARY KEY (project_guid, element_id, attr_index),
-    FOREIGN KEY (project_guid, element_id)
-        REFERENCES element (project_guid, id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS cover (
-    project_guid TEXT NOT NULL,
-    element_id   INTEGER NOT NULL,
-    cover_kind   TEXT NOT NULL,
-    PRIMARY KEY (project_guid, element_id),
-    FOREIGN KEY (project_guid, element_id)
-        REFERENCES element (project_guid, id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS container_member (
-    project_guid TEXT NOT NULL,
-    container_id INTEGER NOT NULL,
-    member_id    INTEGER NOT NULL,
-    PRIMARY KEY (project_guid, container_id, member_id),
-    FOREIGN KEY (project_guid, container_id)
-        REFERENCES element (project_guid, id) ON DELETE CASCADE,
-    FOREIGN KEY (project_guid, member_id)
-        REFERENCES element (project_guid, id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS building (
-    project_guid TEXT NOT NULL,
-    name         TEXT NOT NULL,
-    PRIMARY KEY (project_guid, name),
-    FOREIGN KEY (project_guid) REFERENCES project (project_guid) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS storey (
-    project_guid  TEXT NOT NULL,
-    building_name TEXT NOT NULL,
-    name          TEXT NOT NULL,
-    elevation     REAL NOT NULL DEFAULT 0.0,
-    PRIMARY KEY (project_guid, building_name, name),
-    FOREIGN KEY (project_guid, building_name)
-        REFERENCES building (project_guid, name) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS storey_assignment (
-    project_guid  TEXT NOT NULL,
-    element_id    INTEGER NOT NULL,
-    building_name TEXT NOT NULL,
-    storey_name   TEXT NOT NULL,
-    spans         INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (project_guid, element_id),
-    FOREIGN KEY (project_guid, element_id)
-        REFERENCES element (project_guid, id) ON DELETE CASCADE,
-    FOREIGN KEY (project_guid, building_name, storey_name)
-        REFERENCES storey (project_guid, building_name, name) ON DELETE CASCADE
-);
-"""
-
-# The ten tables the schema defines, in foreign-key-safe creation order.
-TABLES: tuple[str, ...] = (
-    "project",
-    "element",
-    "attribute",
-    "geometry",
-    "user_attribute",
-    "cover",
-    "container_member",
-    "building",
-    "storey",
-    "storey_assignment",
+from pycadwork.persistence.sql import (
+    Column,
+    ColumnType,
+    ForeignKey,
+    Table,
+    create_table,
 )
+
+_TEXT = ColumnType.TEXT
+_INTEGER = ColumnType.INTEGER
+_REAL = ColumnType.REAL
+
+
+def _text(name: str) -> Column:
+    """A required text column defaulting to the empty string."""
+    return Column(name, _TEXT, default="")
+
+
+def _real(name: str) -> Column:
+    """A required real column defaulting to ``0.0``."""
+    return Column(name, _REAL, default=0.0)
+
+
+PROJECT = Table(
+    name="project",
+    columns=(
+        Column("project_guid", _TEXT),
+        _text("name"),
+        _text("number"),
+        _text("part"),
+        _text("architect"),
+        _text("customer"),
+        _text("designer"),
+        _text("deadline"),
+        _text("description"),
+        _text("address"),
+        _text("postal_code"),
+        _text("city"),
+        _text("country"),
+        _real("latitude"),
+        _real("longitude"),
+        _real("elevation"),
+    ),
+    primary_key=("project_guid",),
+)
+
+ELEMENT = Table(
+    name="element",
+    columns=(
+        Column("project_guid", _TEXT),
+        Column("id", _INTEGER),
+        Column("element_type", _TEXT),
+        _text("cadwork_guid"),
+        Column("parent_container_id", _INTEGER, not_null=False),
+    ),
+    primary_key=("project_guid", "id"),
+    foreign_keys=(
+        ForeignKey(("project_guid",), "project", ("project_guid",)),
+    ),
+)
+
+ATTRIBUTE = Table(
+    name="attribute",
+    columns=(
+        Column("project_guid", _TEXT),
+        Column("element_id", _INTEGER),
+        _text("name"),
+        _text("group_name"),
+        _text("subgroup"),
+        _text("comment"),
+        _text("material_name"),
+        _text("sku"),
+        Column("production_number", _INTEGER, default=0),
+        _text("part_number"),
+        _text("assembly_number"),
+    ),
+    primary_key=("project_guid", "element_id"),
+    foreign_keys=(
+        ForeignKey(("project_guid", "element_id"), "element", ("project_guid", "id")),
+    ),
+)
+
+GEOMETRY = Table(
+    name="geometry",
+    columns=(
+        Column("project_guid", _TEXT),
+        Column("element_id", _INTEGER),
+        _real("p1x"),
+        _real("p1y"),
+        _real("p1z"),
+        _real("p2x"),
+        _real("p2y"),
+        _real("p2z"),
+        _real("p3x"),
+        _real("p3y"),
+        _real("p3z"),
+        _real("length"),
+        _real("width"),
+        _real("height"),
+        _real("volume"),
+        _real("weight"),
+        _real("cog_x"),
+        _real("cog_y"),
+        _real("cog_z"),
+        _real("aabb_min_x"),
+        _real("aabb_min_y"),
+        _real("aabb_min_z"),
+        _real("aabb_max_x"),
+        _real("aabb_max_y"),
+        _real("aabb_max_z"),
+    ),
+    primary_key=("project_guid", "element_id"),
+    foreign_keys=(
+        ForeignKey(("project_guid", "element_id"), "element", ("project_guid", "id")),
+    ),
+)
+
+USER_ATTRIBUTE = Table(
+    name="user_attribute",
+    columns=(
+        Column("project_guid", _TEXT),
+        Column("element_id", _INTEGER),
+        Column("attr_index", _INTEGER),
+        _text("value"),
+    ),
+    primary_key=("project_guid", "element_id", "attr_index"),
+    foreign_keys=(
+        ForeignKey(("project_guid", "element_id"), "element", ("project_guid", "id")),
+    ),
+)
+
+COVER = Table(
+    name="cover",
+    columns=(
+        Column("project_guid", _TEXT),
+        Column("element_id", _INTEGER),
+        Column("cover_kind", _TEXT),
+    ),
+    primary_key=("project_guid", "element_id"),
+    foreign_keys=(
+        ForeignKey(("project_guid", "element_id"), "element", ("project_guid", "id")),
+    ),
+)
+
+CONTAINER_MEMBER = Table(
+    name="container_member",
+    columns=(
+        Column("project_guid", _TEXT),
+        Column("container_id", _INTEGER),
+        Column("member_id", _INTEGER),
+    ),
+    primary_key=("project_guid", "container_id", "member_id"),
+    foreign_keys=(
+        ForeignKey(
+            ("project_guid", "container_id"), "element", ("project_guid", "id")
+        ),
+        ForeignKey(("project_guid", "member_id"), "element", ("project_guid", "id")),
+    ),
+)
+
+BUILDING = Table(
+    name="building",
+    columns=(
+        Column("project_guid", _TEXT),
+        Column("name", _TEXT),
+    ),
+    primary_key=("project_guid", "name"),
+    foreign_keys=(
+        ForeignKey(("project_guid",), "project", ("project_guid",)),
+    ),
+)
+
+STOREY = Table(
+    name="storey",
+    columns=(
+        Column("project_guid", _TEXT),
+        Column("building_name", _TEXT),
+        Column("name", _TEXT),
+        _real("elevation"),
+    ),
+    primary_key=("project_guid", "building_name", "name"),
+    foreign_keys=(
+        ForeignKey(
+            ("project_guid", "building_name"), "building", ("project_guid", "name")
+        ),
+    ),
+)
+
+STOREY_ASSIGNMENT = Table(
+    name="storey_assignment",
+    columns=(
+        Column("project_guid", _TEXT),
+        Column("element_id", _INTEGER),
+        Column("building_name", _TEXT),
+        Column("storey_name", _TEXT),
+        Column("spans", _INTEGER, default=0),
+    ),
+    primary_key=("project_guid", "element_id"),
+    foreign_keys=(
+        ForeignKey(("project_guid", "element_id"), "element", ("project_guid", "id")),
+        ForeignKey(
+            ("project_guid", "building_name", "storey_name"),
+            "storey",
+            ("project_guid", "building_name", "name"),
+        ),
+    ),
+)
+
+# The ten tables, in foreign-key-safe creation order: parents before children.
+TABLE_DEFS: tuple[Table, ...] = (
+    PROJECT,
+    ELEMENT,
+    ATTRIBUTE,
+    GEOMETRY,
+    USER_ATTRIBUTE,
+    COVER,
+    CONTAINER_MEMBER,
+    BUILDING,
+    STOREY,
+    STOREY_ASSIGNMENT,
+)
+
+# Their names, same order — the public list the connection/tests rely on.
+TABLES: tuple[str, ...] = tuple(table.name for table in TABLE_DEFS)
+
+# The full idempotent DDL script, generated from the table definitions.
+SCHEMA_SQL: str = "\n\n".join(create_table(table) for table in TABLE_DEFS)
