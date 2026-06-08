@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pycadwork.geometry.point3d import Point3D
 from pycadwork.geometry.vector3d import Vector3D
+from pycadwork.value_types import Distance
 
 
 class Line3D:
@@ -76,7 +77,7 @@ class Line3D:
     # Distance
     # ------------------------------------------------------------------
 
-    def distance_to_point(self, query: Point3D) -> float:
+    def distance_to_point(self, query: Point3D) -> Distance:
         return query.distance_to(self.project_point(query))
 
     def distance_squared_to_point(self, query: Point3D) -> float:

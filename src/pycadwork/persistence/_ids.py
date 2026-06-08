@@ -12,24 +12,24 @@ Only *identity* is wrapped. Descriptive payload fields (``name``, ``comment``,
 ``material_name``, building / storey names, …) stay primitive: they are never
 confused positionally with an id, so wrapping them would be noise.
 
-``ElementId`` is the canonical seam id, reused from
-:mod:`pycadwork.cadwork_adapter.types` (re-exported here so record code has one
-import site for every identifier). ``ContainerId`` and ``MemberId`` layer on it
-— a container and a member are both elements — so either is accepted where an
-``ElementId`` is expected (e.g. as a key into the stored→model id map) while
-remaining mutually distinct, so the two cannot be transposed.
+Every alias here is defined in :mod:`pycadwork.value_types` — the single source
+of truth for every typed value in the package — and re-exported from this module
+so record code keeps one import site for every identifier. ``ElementId`` is the
+canonical seam id; ``ContainerId`` and ``MemberId`` layer on it — a container
+and a member are both elements — so either is accepted where an ``ElementId`` is
+expected (e.g. as a key into the stored→model id map) while remaining mutually
+distinct, so the two cannot be transposed.
 """
 
 from __future__ import annotations
 
-from typing import NewType
-
-from pycadwork.cadwork_adapter.types import ElementId
-
-ProjectGuid = NewType("ProjectGuid", str)
-CadworkGuid = NewType("CadworkGuid", str)
-ContainerId = NewType("ContainerId", ElementId)
-MemberId = NewType("MemberId", ElementId)
+from pycadwork.value_types import (
+    CadworkGuid,
+    ContainerId,
+    ElementId,
+    MemberId,
+    ProjectGuid,
+)
 
 __all__ = [
     "CadworkGuid",

@@ -104,3 +104,67 @@ def test_storey_assignment_spans_roundtrips_as_bool() -> None:
     rows = StoreyAssignmentGateway(connection).select_for_project("g")
     assert rows == [record]
     assert rows[0].spans is True
+
+
+def test_select_for_building_is_scoped_to_one_building() -> None:
+    connection = open_sqlite(":memory:")
+    _seed_project(connection)
+    gateway = StoreyGateway(connection)
+    BuildingGateway(connection).upsert(BuildingRecord("g", "A"))
+    BuildingGateway(connection).upsert(BuildingRecord("g", "B"))
+    gateway.upsert(StoreyRecord("g", "A", "S0", 0.0))
+    gateway.upsert(StoreyRecord("g", "B", "S0", 0.0))
+    gateway.upsert(StoreyRecord("g", "B", "S1", 3.0))
+
+    rows = gateway.select_for_building("g", "B")
+
+    assert {r.name for r in rows} == {"S0", "S1"}
+    assert {r.building_name for r in rows} == {"B"}
+
+
+def test_select_for_storey_is_scoped_to_one_storey() -> None:
+    connection = open_sqlite(":memory:")
+    _seed_project(connection)
+    BuildingGateway(connection).upsert(BuildingRecord("g", "B"))
+    StoreyGateway(connection).upsert(StoreyRecord("g", "B", "S0", 0.0))
+    StoreyGateway(connection).upsert(StoreyRecord("g", "B", "S1", 3.0))
+    _seed_element(connection, 1)
+    _seed_element(connection, 2)
+    gateway = StoreyAssignmentGateway(connection)
+    gateway.upsert(StoreyAssignmentRecord("g", 1, "B", "S0"))
+    gateway.upsert(StoreyAssignmentRecord("g", 2, "B", "S1"))
+
+    rows = gateway.select_for_storey("g", "B", "S0")
+
+    assert [r.element_id for r in rows] == [1]
+
+
+def test_select_for_ids_filters_to_the_given_ids() -> None:
+    connection = open_sqlite(":memory:")
+    _seed_project(connection)
+    for eid in (1, 2, 3):
+        _seed_element(connection, eid)
+
+    rows = ElementGateway(connection).select_for_ids("g", [1, 3])
+
+    assert sorted(r.id for r in rows) == [1, 3]
+
+
+def test_select_for_ids_short_circuits_on_empty() -> None:
+    connection = open_sqlite(":memory:")
+    _seed_project(connection)
+    _seed_element(connection, 1)
+
+    assert ElementGateway(connection).select_for_ids("g", []) == []
+
+
+def test_select_for_ids_is_scoped_to_one_project() -> None:
+    connection = open_sqlite(":memory:")
+    ProjectGateway(connection).upsert(ProjectRecord("g1"))
+    ProjectGateway(connection).upsert(ProjectRecord("g2"))
+    ElementGateway(connection).upsert(ElementRecord("g1", 1, "beam"))
+    ElementGateway(connection).upsert(ElementRecord("g2", 1, "plate"))
+
+    rows = ElementGateway(connection).select_for_ids("g1", [1])
+
+    assert [r.element_type for r in rows] == ["beam"]

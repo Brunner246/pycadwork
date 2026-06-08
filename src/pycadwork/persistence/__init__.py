@@ -40,6 +40,7 @@ from pycadwork.persistence._ids import (
     ProjectGuid,
 )
 from pycadwork.persistence.mappers import ModelReader, ModelWriter, WriteResult
+from pycadwork.persistence.query import BuildingQuery
 from pycadwork.persistence.records import (
     AttributeRecord,
     BuildingRecord,
@@ -58,6 +59,7 @@ from pycadwork.persistence.unit_of_work import UnitOfWork
 
 __all__ = [
     "AttributeRecord",
+    "BuildingQuery",
     "BuildingRecord",
     "CadworkGuid",
     "ContainerId",

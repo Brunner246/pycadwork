@@ -35,6 +35,16 @@ from pycadwork.geometry._facets import (
     brep_from_facet_list,
     point3d_from_tuple,
 )
+from pycadwork.value_types import (
+    Diameter,
+    Height,
+    Length,
+    Radius,
+    Thickness,
+    Volume,
+    Weight,
+    Width,
+)
 
 
 class Geometry:
@@ -46,12 +56,12 @@ class Geometry:
         self._id = element_id
 
     @property
-    def volume(self) -> float:
-        return cadwork.geometry.get_volume(self._id)
+    def volume(self) -> Volume:
+        return Volume(cadwork.geometry.get_volume(self._id))
 
     @property
-    def weight(self) -> float:
-        return cadwork.geometry.get_weight(self._id)
+    def weight(self) -> Weight:
+        return Weight(cadwork.geometry.get_weight(self._id))
 
     @property
     def center_of_gravity(self) -> Point3D:
@@ -104,24 +114,24 @@ class LinearGeometry(Geometry):
     # ---- scalars ----
 
     @property
-    def length(self) -> float:
-        return cadwork.geometry.get_length(self._id)
+    def length(self) -> Length:
+        return Length(cadwork.geometry.get_length(self._id))
 
     @length.setter
     def length(self, length: float) -> None:
         cadwork.geometry.set_length([self._id], length)
 
     @property
-    def width(self) -> float:
-        return cadwork.geometry.get_width(self._id)
+    def width(self) -> Width:
+        return Width(cadwork.geometry.get_width(self._id))
 
     @width.setter
     def width(self, width: float) -> None:
         cadwork.geometry.set_width([self._id], width)
 
     @property
-    def height(self) -> float:
-        return cadwork.geometry.get_height(self._id)
+    def height(self) -> Height:
+        return Height(cadwork.geometry.get_height(self._id))
 
     @height.setter
     def height(self, height: float) -> None:
@@ -156,9 +166,9 @@ class OrientedGeometry(LinearGeometry):
     __slots__ = ()
 
     @property
-    def thickness(self) -> float:
+    def thickness(self) -> Thickness:
         """Panel thickness — semantic alias for the backend's ``height`` channel."""
-        return cadwork.geometry.get_height(self._id)
+        return Thickness(cadwork.geometry.get_height(self._id))
 
     @thickness.setter
     def thickness(self, thickness: float) -> None:
@@ -178,8 +188,8 @@ class CircularGeometry(LinearGeometry):
     __slots__ = ()
 
     @property
-    def diameter(self) -> float:
-        return cadwork.geometry.get_width(self._id)
+    def diameter(self) -> Diameter:
+        return Diameter(cadwork.geometry.get_width(self._id))
 
     @diameter.setter
     def diameter(self, diameter: float) -> None:
@@ -188,17 +198,17 @@ class CircularGeometry(LinearGeometry):
         cadwork.geometry.set_height([self._id], diameter)
 
     @property
-    def radius(self) -> float:
-        return self.diameter / 2.0
+    def radius(self) -> Radius:
+        return Radius(self.diameter / 2.0)
 
     @property
-    def width(self) -> float:
+    def width(self) -> Width:
         raise AttributeError(
             "CircularGeometry has no rectangular 'width'; use 'diameter' or 'radius'"
         )
 
     @property
-    def height(self) -> float:
+    def height(self) -> Height:
         raise AttributeError(
             "CircularGeometry has no rectangular 'height'; use 'diameter' or 'radius'"
         )

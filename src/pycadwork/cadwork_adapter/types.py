@@ -10,14 +10,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import NewType, Protocol
+from typing import Protocol
 
-# A cadwork element id. A ``NewType``, not a bare ``int``: at runtime it *is* the
-# int cadwork uses, but a type checker keeps it distinct from an arbitrary int
-# and from the other seam ids (see ``pycadwork.persistence._ids``), so the
-# element-id parameters threaded through every adapter call cannot be transposed
-# with an unrelated integer.
-ElementId = NewType("ElementId", int)
+from pycadwork.value_types import ElementId
+
+# ``ElementId`` is defined in :mod:`pycadwork.value_types` (the single source of
+# truth for every typed value alias) and re-exported here so the cadwork seam
+# keeps one import site for it. It is a ``NewType``, not a bare ``int``: at
+# runtime it *is* the int cadwork uses, but a type checker keeps it distinct
+# from an arbitrary int and from the other seam ids, so the element-id
+# parameters threaded through every adapter call cannot be transposed with an
+# unrelated integer.
 PointTuple = tuple[float, float, float]
 
 
@@ -122,3 +125,18 @@ class InternalPolygonsLike(Protocol):
 
     def count(self) -> int: ...
     def at(self, index: int) -> VertexListLike: ...
+
+
+__all__ = [
+    "CoverKind",
+    "ElementId",
+    "ElementTypeSnapshot",
+    "FacetListLike",
+    "GroupingMode",
+    "InternalPolygonsLike",
+    "PointTuple",
+    "ROOF_KINDS",
+    "SLAB_KINDS",
+    "VertexListLike",
+    "WALL_KINDS",
+]

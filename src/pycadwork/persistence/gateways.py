@@ -17,10 +17,11 @@ own, an override of :meth:`TableDataGateway._from_row` (only the storey-spanning
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any, Generic, TypeVar
 
 from pycadwork.persistence._connection import GatewayConnection
-from pycadwork.persistence._ids import ProjectGuid
+from pycadwork.persistence._ids import ElementId, ProjectGuid
 from pycadwork.persistence.records import (
     AttributeRecord,
     BuildingRecord,
@@ -105,14 +106,19 @@ class TableDataGateway(Generic[R]):
         params = [getattr(record, c) for c in self.pk]
         self._connection.execute(f"DELETE FROM {self.table} WHERE {where}", params)
 
-    def select_for_project(self, project_guid: ProjectGuid) -> list[R]:
-        """Every row of this table belonging to ``project_guid``, as records."""
+    def _select_where(self, **equals: Any) -> list[R]:
+        """Rows whose columns equal the given values (AND-combined), as records."""
+        where = " AND ".join(f"{c} = ?" for c in equals)
         column_list = ", ".join(self.columns)
         rows = self._connection.execute(
-            f"SELECT {column_list} FROM {self.table} WHERE project_guid = ?",
-            [project_guid],
+            f"SELECT {column_list} FROM {self.table} WHERE {where}",
+            list(equals.values()),
         )
         return [self._from_row(row) for row in rows]
+
+    def select_for_project(self, project_guid: ProjectGuid) -> list[R]:
+        """Every row of this table belonging to ``project_guid``, as records."""
+        return self._select_where(project_guid=project_guid)
 
 
 class ProjectGateway(TableDataGateway[ProjectRecord]):
@@ -150,6 +156,26 @@ class ElementGateway(TableDataGateway[ElementRecord]):
         "parent_container_id",
     )
     pk = ("project_guid", "id")
+
+    def select_for_ids(
+        self, project_guid: ProjectGuid, ids: Sequence[ElementId]
+    ) -> list[ElementRecord]:
+        """The element rows for ``ids`` within ``project_guid`` (``id`` is the key).
+
+        ``_select_where`` cannot serve this — it tests equality, and this needs an
+        ``IN`` set — so the one variadic ``IN`` clause in the package lives here.
+        An empty ``ids`` short-circuits to ``[]`` (an empty ``IN ()`` is invalid SQL).
+        """
+        if not ids:
+            return []
+        placeholders = ", ".join("?" for _ in ids)
+        column_list = ", ".join(self.columns)
+        rows = self._connection.execute(
+            f"SELECT {column_list} FROM {self.table} "
+            f"WHERE project_guid = ? AND id IN ({placeholders})",
+            [project_guid, *ids],
+        )
+        return [self._from_row(row) for row in rows]
 
 
 class AttributeGateway(TableDataGateway[AttributeRecord]):
@@ -238,12 +264,30 @@ class StoreyGateway(TableDataGateway[StoreyRecord]):
     columns = ("project_guid", "building_name", "name", "elevation")
     pk = ("project_guid", "building_name", "name")
 
+    def select_for_building(
+        self, project_guid: ProjectGuid, building_name: str
+    ) -> list[StoreyRecord]:
+        """The storeys under ``building_name`` within ``project_guid``."""
+        return self._select_where(
+            project_guid=project_guid, building_name=building_name
+        )
+
 
 class StoreyAssignmentGateway(TableDataGateway[StoreyAssignmentRecord]):
     record_cls = StoreyAssignmentRecord
     table = "storey_assignment"
     columns = ("project_guid", "element_id", "building_name", "storey_name", "spans")
     pk = ("project_guid", "element_id")
+
+    def select_for_storey(
+        self, project_guid: ProjectGuid, building_name: str, storey_name: str
+    ) -> list[StoreyAssignmentRecord]:
+        """The assignments for one storey of one building within ``project_guid``."""
+        return self._select_where(
+            project_guid=project_guid,
+            building_name=building_name,
+            storey_name=storey_name,
+        )
 
     def _from_row(self, row: tuple[Any, ...]) -> StoreyAssignmentRecord:
         # SQLite stores the ``spans`` bool as 0/1 and reads it back as int;
