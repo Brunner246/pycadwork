@@ -129,10 +129,7 @@ class ElementGateway(TableDataGateway[ElementRecord]):
         if not ids:
             return []
         sql = (
-            Select(self.schema)
-            .where_eq("project_guid")
-            .where_in("id", len(ids))
-            .sql()
+            Select(self.schema).where_eq("project_guid").where_in("id", len(ids)).sql()
         )
         rows = self._connection.execute(sql, [project_guid, *ids])
         return [self._from_row(row) for row in rows]

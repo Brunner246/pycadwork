@@ -24,9 +24,7 @@ _PEOPLE = Table(
         Column("parent_id", ColumnType.INTEGER, not_null=False),
     ),
     primary_key=("project_guid", "id"),
-    foreign_keys=(
-        ForeignKey(("project_guid",), "project", ("project_guid",)),
-    ),
+    foreign_keys=(ForeignKey(("project_guid",), "project", ("project_guid",)),),
 )
 
 # A table whose every column is part of the key — nothing to update on conflict.

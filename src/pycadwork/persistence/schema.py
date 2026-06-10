@@ -86,9 +86,7 @@ ELEMENT = Table(
         Column("parent_container_id", _INTEGER, not_null=False),
     ),
     primary_key=("project_guid", "id"),
-    foreign_keys=(
-        ForeignKey(("project_guid",), "project", ("project_guid",)),
-    ),
+    foreign_keys=(ForeignKey(("project_guid",), "project", ("project_guid",)),),
 )
 
 ATTRIBUTE = Table(
@@ -183,9 +181,7 @@ CONTAINER_MEMBER = Table(
     ),
     primary_key=("project_guid", "container_id", "member_id"),
     foreign_keys=(
-        ForeignKey(
-            ("project_guid", "container_id"), "element", ("project_guid", "id")
-        ),
+        ForeignKey(("project_guid", "container_id"), "element", ("project_guid", "id")),
         ForeignKey(("project_guid", "member_id"), "element", ("project_guid", "id")),
     ),
 )
@@ -197,9 +193,7 @@ BUILDING = Table(
         Column("name", _TEXT),
     ),
     primary_key=("project_guid", "name"),
-    foreign_keys=(
-        ForeignKey(("project_guid",), "project", ("project_guid",)),
-    ),
+    foreign_keys=(ForeignKey(("project_guid",), "project", ("project_guid",)),),
 )
 
 STOREY = Table(
