@@ -130,9 +130,9 @@ class ModelReader:
                     parent_container_id=parent_id,
                 )
             )
-            attributes.append(self._attribute_record(guid, element))
-            geometries.append(self._geometry_record(guid, eid))
-            user_attributes.extend(self._user_attribute_records(guid, element))
+            attributes.append(ModelReader._attribute_record(guid, element))
+            geometries.append(ModelReader._geometry_record(guid, eid))
+            user_attributes.extend(ModelReader._user_attribute_records(guid, element))
 
             if isinstance(element, Aggregate):
                 covers.append(CoverRecord(guid, eid, element.kind.value))
