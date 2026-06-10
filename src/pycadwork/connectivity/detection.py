@@ -16,8 +16,9 @@ to honour the version-isolation seam.
 from __future__ import annotations
 
 from pycadwork.cadwork_adapter import cadwork
-from pycadwork.element import Element, LinearElement, from_id
+from pycadwork.element import Element, from_id
 from pycadwork.geometry import OrientedBoundingBox
+from pycadwork.geometry.spatial_index import as_oriented
 
 #: Default contact tolerance. Small enough to mean "touching or overlapping"
 #: while absorbing floating-point error; widen it to treat near-misses as
@@ -28,14 +29,13 @@ DEFAULT_TOLERANCE = 1e-6
 def _region_of(element: Element) -> OrientedBoundingBox:
     """Return the element's tightest bounding region as an OBB.
 
-    Axis-anchored elements (``LinearElement`` and its ``OrientedElement``
-    subclasses) carry a tight, frame-aligned OBB. Everything else only
-    exposes an AABB, which we lift into OBB form so a single SAT test
-    handles both.
+    Each geometry component reports its tightest native region via
+    ``bounding_region`` — a frame-aligned OBB for axis-anchored elements
+    (beams, plates, drillings, ...), a world-aligned AABB for everything else
+    (nodes, surfaces, bare elements). An AABB is lifted into OBB form so a
+    single SAT test handles both.
     """
-    if isinstance(element, LinearElement):
-        return element.geometry.obb
-    return OrientedBoundingBox.from_axis_aligned(element.geometry.aabb)
+    return as_oriented(element.geometry.bounding_region)
 
 
 def connects(a: Element, b: Element, tolerance: float = DEFAULT_TOLERANCE) -> bool:

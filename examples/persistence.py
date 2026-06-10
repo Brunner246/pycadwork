@@ -28,10 +28,12 @@ from pycadwork import (
 from pycadwork.persistence import (
     ModelReader,
     Synchronizer,
+    UnitOfWork,
     diff,
     load_snapshot,
     open_sqlite,
 )
+from pycadwork.persistence.records import ElementRecord, ProjectRecord
 
 
 def _seed_model() -> None:
@@ -114,6 +116,32 @@ def demo_push_is_a_noop_when_in_sync() -> None:
     )
 
 
+def demo_unit_of_work() -> None:
+    """`UnitOfWork` stages records across gateways and commits them atomically.
+
+    ``pull`` uses it under the hood; here we drive it directly. Records are
+    dispatched to their table's gateway by type and written in foreign-key-safe
+    order (project before element), all inside one transaction — either every
+    change lands or none does.
+    """
+    connection = open_sqlite(":memory:")
+
+    uow = UnitOfWork(connection)
+    uow.register_new(ProjectRecord("demo", name="Demo"))
+    uow.register_new(ElementRecord("demo", 1, "beam"))
+    uow.register_new(ElementRecord("demo", 2, "plate"))
+    uow.commit()  # one transaction; the project row lands before the elements
+
+    count = connection.execute("SELECT COUNT(*) FROM element")
+    print("after commit, element rows =", count[0][0])  # 2
+
+    # Staged-but-not-committed changes are discarded by rollback — nothing written.
+    uow.register_new(ElementRecord("demo", 3, "drilling"))
+    uow.rollback()
+    after = connection.execute("SELECT COUNT(*) FROM element")
+    print("after rollback, element rows =", after[0][0])  # still 2
+
+
 def run() -> None:
     """Run every persistence demo in order."""
     _seed_model()
@@ -122,6 +150,7 @@ def run() -> None:
     demo_read_snapshot_without_sql()
     demo_diff_before_push()
     demo_push_is_a_noop_when_in_sync()
+    demo_unit_of_work()
 
 
 if __name__ == "__main__":

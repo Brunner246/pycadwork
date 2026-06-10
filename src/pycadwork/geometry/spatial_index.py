@@ -37,10 +37,18 @@ if TYPE_CHECKING:
 BoundingRegion3D = AxisAlignedBoundingBox | OrientedBoundingBox
 
 
-def _to_aabb(region: BoundingRegion3D) -> AxisAlignedBoundingBox:
+def as_axis_aligned(region: BoundingRegion3D) -> AxisAlignedBoundingBox:
+    """Coerce any bounding region to an AABB (identity when already axis-aligned)."""
     if isinstance(region, AxisAlignedBoundingBox):
         return region
     return region.to_axis_aligned_bounding_box()
+
+
+def as_oriented(region: BoundingRegion3D) -> OrientedBoundingBox:
+    """Coerce any bounding region to an OBB (identity when already oriented)."""
+    if isinstance(region, OrientedBoundingBox):
+        return region
+    return OrientedBoundingBox.from_axis_aligned(region)
 
 
 @runtime_checkable
@@ -106,7 +114,7 @@ class RTreeIndex3D:
     # ------------------------------------------------------------------
 
     def insert(self, element_id: int, bounds: BoundingRegion3D) -> None:
-        self._index.insert(element_id, _to_aabb(bounds).as_coordinates())
+        self._index.insert(element_id, as_axis_aligned(bounds).as_coordinates())
         self._count += 1
 
     def remove(self, element_id: int, bounds: BoundingRegion3D) -> None:
@@ -116,7 +124,7 @@ class RTreeIndex3D:
         Pass the same bounds that were used when inserting -- for OBB
         entries the enclosing AABB must match, so pass the same OBB.
         """
-        self._index.delete(element_id, _to_aabb(bounds).as_coordinates())
+        self._index.delete(element_id, as_axis_aligned(bounds).as_coordinates())
         self._count -= 1
 
     def clear(self) -> None:
@@ -131,7 +139,7 @@ class RTreeIndex3D:
         return self._count
 
     def intersection(self, region: BoundingRegion3D) -> Iterator[int]:
-        return iter(self._index.intersection(_to_aabb(region).as_coordinates()))
+        return iter(self._index.intersection(as_axis_aligned(region).as_coordinates()))
 
     def nearest(self, point: Point3D, k: int = 1) -> Iterator[int]:
         if k < 1:

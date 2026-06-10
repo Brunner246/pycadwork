@@ -19,8 +19,10 @@ Modules:
 * :mod:`examples.containers_and_mep`   — Container containment and MEP runs
 * :mod:`examples.connectivity`         — find_connected and the connection graph
 * :mod:`examples.building_storeys`     — StoreyStack and StoreyAssigner
-* :mod:`examples.utilities`            — DisplayRefreshScope and batch_apply
+* :mod:`examples.utilities`            — DisplayRefreshScope, suppressed_display, batch_apply
+* :mod:`examples.decorators`           — pure-Python class decorators (auto_repr, auto_eq, deprecated)
 * :mod:`examples.persistence`          — mirror the model to SQL and back
+* :mod:`examples.persistence_queries`  — read the model into SQL, then query it (gateways, JOINs, BuildingQuery)
 * :mod:`examples.sql_builder`          — the table-as-data SQL builder; query a pulled model
 
 .. note::
@@ -44,7 +46,9 @@ MODULES: tuple[str, ...] = (
     "connectivity",
     "building_storeys",
     "utilities",
+    "decorators",
     "persistence",
+    "persistence_queries",
     "sql_builder",
 )
 

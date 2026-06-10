@@ -19,14 +19,16 @@ calls them in order, with comments and `print(...)` of the interesting result.
 | [`containers_and_mep.py`](containers_and_mep.py) | `Container.create_from_standard`, `parent_container`, `discover_containers`; `CircularMep` / `RectangularMep` |
 | [`connectivity.py`](connectivity.py) | `find_connected`, `build_connection_graph`, components, and a custom contact predicate |
 | [`building_storeys.py`](building_storeys.py) | The pure `StoreyStack` classifier and the model-driven `StoreyAssigner` |
-| [`utilities.py`](utilities.py) | `DisplayRefreshScope` (context + `@auto_recreate`) and `batch_apply` |
-| [`persistence.py`](persistence.py) | `open_sqlite`, `Synchronizer` pull/push, `ModelReader`, `diff`, and raw SQL |
+| [`utilities.py`](utilities.py) | `DisplayRefreshScope` (context, `@auto_recreate`, `@DisplayRefreshScope()`, `recreate_after`), `suppressed_display`, and `batch_apply` |
+| [`decorators.py`](decorators.py) | The pure-Python class decorators: `auto_repr` (bare + fields), `auto_eq` / `auto_hash`, and `deprecated` |
+| [`persistence.py`](persistence.py) | `open_sqlite`, `Synchronizer` pull/push, `ModelReader`, `diff`, `UnitOfWork`, and raw SQL |
+| [`persistence_queries.py`](persistence_queries.py) | Read the model into SQL, then query it back: typed `Gateway` reads, a cross-table SQL JOIN report, and the `BuildingQuery` facade (building → storeys → elements) |
 | [`sql_builder.py`](sql_builder.py) | The table-as-data SQL builder (`Table` / `Column`, `create_table`, `Insert` / `Update` / `Delete` / `Select`), then using it to query a pulled model |
 
 ## Running inside cadwork vs. anywhere
 
-The examples use only the public `pycadwork` API. One of them — `geometry_basics`
-— touches no live model and runs in any interpreter. The rest *create elements*
+The examples use only the public `pycadwork` API. Two of them — `geometry_basics`
+and `decorators` — touch no live model and run in any interpreter. The rest *create elements*
 (including `persistence` and `sql_builder`, which mirror a real model), so they
 run fully **inside cadwork** (where the real adapter is live) or **under the test
 suite's in-memory fake**.

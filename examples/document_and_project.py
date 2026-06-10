@@ -64,14 +64,38 @@ def demo_project_metadata() -> None:
     project.set_name("Cabin A")
     project.set_number("2026-014")
     project.set_architect("M. Brunner")
+    project.set_customer("Alpine Builders")
+    project.set_designer("Studio North")
     project.set_latitude(47.05)
     project.set_longitude(8.31)
 
     print("name      =", project.name)
     print("number    =", project.number)
     print("architect =", project.architect)
+    print("customer  =", project.customer)
+    print("designer  =", project.designer)
     print("lat/lon   =", project.latitude, project.longitude)
     print("guid      =", project.guid)  # read-only in cwapi3d
+
+    # The GUID is read-only, but you can mint a fresh one when you need a new id.
+    print("new guid  =", project.new_guid())
+
+
+def demo_delete_elements() -> None:
+    """`Document.delete` removes elements from the model in one batched call."""
+    doc = Document()
+    before = len(doc.elements())
+
+    # A throwaway beam, then delete it — the repository count drops back.
+    scratch = Beam.create_rectangular(
+        RectSection(60, 120),
+        AxisPoints(Point3D(0, 0, 0), Point3D(1000, 0, 0), Point3D(0, 0, 1)),
+    )
+    print("after create =", len(doc.elements()))  # before + 1
+
+    Document.delete([scratch])
+    print("after delete =", len(doc.elements()))  # back to `before`
+    assert len(doc.elements()) == before
 
 
 def demo_project_data_store() -> None:
@@ -92,6 +116,7 @@ def run() -> None:
     _seed_some_elements()
     demo_repository()
     demo_project_metadata()
+    demo_delete_elements()
     demo_project_data_store()
 
 

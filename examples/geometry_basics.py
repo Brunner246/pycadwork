@@ -14,9 +14,15 @@ from pycadwork import (
     AxisAlignedBoundingBox,
     AxisFrame,
     AxisPoints,
+    Brep,
+    Face,
     Frame3D,
+    Loop,
+    OrientedBoundingBox,
     PanelSection,
+    Plane3D,
     Point3D,
+    RTreeIndex3D,
     RectSection,
     Segment,
     Vector3D,
@@ -76,6 +82,68 @@ def demo_bounding_box() -> None:
     print("boxes intersect?", box.intersects(grown))
 
 
+def demo_plane() -> None:
+    """A Plane3D classifies points, measures distance, and intersects a line."""
+    plane = Plane3D.xy(z=100.0)  # the z=100 plane, normal +Z
+
+    above = Point3D(0, 0, 150)
+    print("signed distance =", plane.signed_distance_to(above))  # 50.0
+    print("is above?", plane.is_above(above))  # True
+    print("projection =", plane.project_point(above))  # Point3D(0, 0, 100)
+
+    # Where a vertical line crosses the plane.
+    hit = plane.intersect_line(Point3D(0, 0, 0), Vector3D.unit_z())
+    print("line hits plane at =", hit)  # Point3D(0, 0, 100)
+
+
+def demo_oriented_bounding_box() -> None:
+    """An OBB bounds points in an arbitrary frame; lift an AABB into one to compare."""
+    # A tight OBB of some points, aligned to the world axes here for clarity.
+    frame = Frame3D(Point3D.origin(), Vector3D.unit_x(), Vector3D.unit_y())
+    obb = OrientedBoundingBox([Point3D(0, 0, 0), Point3D(200, 100, 50)], frame)
+    print("obb center =", obb.center, "half-extents =", obb.half_extents)
+    print("contains (10,10,10)?", obb.contains_point(Point3D(10, 10, 10)))
+
+    # OBB ↔ OBB intersection uses the separating-axis test.
+    aabb = AxisAlignedBoundingBox([Point3D(100, 50, 0), Point3D(300, 150, 50)])
+    other = OrientedBoundingBox.from_axis_aligned(aabb)
+    print("boxes intersect?", obb.intersects(other))  # True (they overlap)
+
+
+def demo_brep() -> None:
+    """A Brep is a flat set of planar Faces, each an outer Loop on a support plane."""
+    # A unit square in the z=0 plane: one closed loop of four corners.
+    square = Loop(
+        [Point3D(0, 0, 0), Point3D(100, 0, 0), Point3D(100, 100, 0), Point3D(0, 100, 0)]
+    )
+    face = Face(outer_loop=square, support_plane=Plane3D.xy())
+    brep = Brep([face])
+
+    print("loop vertices =", square.vertex_count())  # 4
+    print("face normal   =", face.normal)  # ~ +Z
+    print("face has holes?", face.has_holes())  # False
+    print("brep faces    =", brep.face_count())  # 1
+
+
+def demo_spatial_index() -> None:
+    """RTreeIndex3D answers broad-phase 'what's near here' queries over bounding boxes."""
+    # Index three boxes by id. (RTreeIndex3D needs the optional 'rtree' package.)
+    boxes = {
+        1: AxisAlignedBoundingBox([Point3D(0, 0, 0), Point3D(100, 100, 100)]),
+        2: AxisAlignedBoundingBox([Point3D(500, 0, 0), Point3D(600, 100, 100)]),
+        3: AxisAlignedBoundingBox([Point3D(50, 50, 50), Point3D(150, 150, 150)]),
+    }
+    index = RTreeIndex3D(boxes.items())
+    print("indexed", len(index), "boxes")
+
+    # Which boxes overlap a query region near the origin? (broad phase — AABB).
+    query = AxisAlignedBoundingBox([Point3D(0, 0, 0), Point3D(60, 60, 60)])
+    print("overlapping ids =", sorted(index.intersection(query)))  # [1, 3]
+
+    # Nearest box id to a point.
+    print("nearest to (520,10,10) =", list(index.nearest(Point3D(520, 10, 10), k=1)))
+
+
 def demo_creation_specs() -> None:
     """Specs are frozen parameter objects shared by every create_* path.
 
@@ -107,6 +175,10 @@ def run() -> None:
     demo_vector_operations()
     demo_frame()
     demo_bounding_box()
+    demo_plane()
+    demo_oriented_bounding_box()
+    demo_brep()
+    demo_spatial_index()
     demo_creation_specs()
 
 

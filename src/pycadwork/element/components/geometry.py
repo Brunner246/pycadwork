@@ -35,6 +35,7 @@ from pycadwork.geometry._facets import (
     brep_from_facet_list,
     point3d_from_tuple,
 )
+from pycadwork.geometry.spatial_index import BoundingRegion3D
 from pycadwork.value_types import (
     Diameter,
     Height,
@@ -74,6 +75,18 @@ class Geometry:
     @property
     def brep(self) -> Brep:
         return brep_from_facet_list(cadwork.geometry.get_element_facets(self._id))
+
+    @property
+    def bounding_region(self) -> BoundingRegion3D:
+        """Tightest *native* bounding region this geometry can offer.
+
+        Bare elements (and nodes, surfaces) only carry a world-aligned box,
+        so this is the :attr:`aabb`. :class:`LinearGeometry` overrides it with
+        the tighter frame-aligned :attr:`obb`. Returning the native region
+        (rather than always lifting to OBB) keeps it lossless; callers convert
+        to the form they need.
+        """
+        return self.aabb
 
 
 class LinearGeometry(Geometry):
@@ -158,6 +171,11 @@ class LinearGeometry(Geometry):
         verts = cadwork.geometry.get_element_vertices(self._id)
         points = [point3d_from_tuple(t) for t in verts]
         return OrientedBoundingBox(points, self.frame)
+
+    @property
+    def bounding_region(self) -> BoundingRegion3D:
+        """Tightest native region for an axis-anchored element: the frame OBB."""
+        return self.obb
 
 
 class OrientedGeometry(LinearGeometry):

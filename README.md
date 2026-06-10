@@ -156,6 +156,7 @@ flowchart TD
     seam["<b>cadwork_adapter</b> — the ONE seam<br/>elements · attributes · geometry · grouping · display · project · bim"]
     cwapi3d["cwapi3d"]
     cadwork["cadwork 3D"]
+    
     app --> document & element & cover & connectivity & building & utility & persistence
     document --> element
     element --> geometry
@@ -166,7 +167,8 @@ flowchart TD
     document & element & cover & connectivity & building & utility & persistence --> seam
     persistence --> sqlite
     seam --> cwapi3d --> cadwork
-    classDef seamStyle fill: #fde68a, stroke: #b45309, stroke-width: 2px, color: #000;
+    
+    classDef seamStyle fill:#fde68a,stroke:#b45309,stroke-width:2px,color:#000000;
     class seam seamStyle
 ```
 
@@ -669,6 +671,53 @@ connection.execute(
     "GROUP BY material_name"
 )
 ```
+
+### Read typed records back — gateways & `BuildingQuery`
+
+The end-to-end loop is **read the model → store it → query it back**. For typed
+reads (frozen records, not raw tuples), go through the per-table gateways; for
+the BMT structure, use the read-side `BuildingQuery` facade. Both run on a store
+already filled by `pull`:
+
+```python
+from pycadwork import Document, Synchronizer
+from pycadwork.persistence import BuildingQuery, open_sqlite
+from pycadwork.persistence.gateways import (
+    AttributeGateway, ElementGateway, GeometryGateway,
+)
+
+connection = open_sqlite(":memory:")
+Synchronizer().pull(connection)          # model -> SQL
+guid = Document().guid
+
+# Per-table gateways map rows back to frozen record DTOs.
+elements = ElementGateway(connection).select_for_project(guid)
+geometry = {g.element_id: g for g in GeometryGateway(connection).select_for_project(guid)}
+attributes = {a.element_id: a for a in AttributeGateway(connection).select_for_project(guid)}
+
+for element in elements:
+    g, a = geometry[element.id], attributes[element.id]
+    print(element.id, element.element_type, a.material_name, g.length, g.volume)
+
+# select_for_ids is the one IN-query — a given id set in a single statement.
+ElementGateway(connection).select_for_ids(guid, [e.id for e in elements[:2]])
+```
+
+`BuildingQuery` answers the three BMT-structure questions directly — buildings,
+the storeys under one (ascending by elevation), and the elements assigned to a
+storey — each as a scoped gateway query, no whole-project load:
+
+```python
+query = BuildingQuery(connection, guid)
+
+for building in query.buildings():                       # list[BuildingRecord]
+    for storey in query.storeys(building.name):          # ascending by elevation
+        elements = query.elements(building.name, storey.name)  # list[ElementRecord]
+        print(building.name, storey.name, [e.id for e in elements])
+```
+
+A runnable, end-to-end version of all three (gateways, the JOIN report, and
+`BuildingQuery`) lives in [`examples/persistence_queries.py`](examples/persistence_queries.py).
 
 ### Pluggable backend
 

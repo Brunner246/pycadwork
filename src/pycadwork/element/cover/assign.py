@@ -17,10 +17,13 @@ from pycadwork.element.cover.aggregate import Aggregate
 from pycadwork.element.cover.discover import discover_covers
 from pycadwork.geometry import (
     AxisAlignedBoundingBox,
-    OrientedBoundingBox,
     RTreeIndex3D,
 )
-from pycadwork.geometry.spatial_index import BoundingRegion3D
+from pycadwork.geometry.spatial_index import (
+    BoundingRegion3D,
+    as_axis_aligned,
+    as_oriented,
+)
 from pycadwork.utility import suppressed_display
 
 
@@ -30,27 +33,6 @@ class CoverAssignment:
 
     element: Element
     cover: Aggregate
-
-
-def _region(geometry: object) -> BoundingRegion3D | None:
-    """The tightest available bounding region: OBB if any, else AABB, else None."""
-    if hasattr(geometry, "obb"):
-        return geometry.obb  # type: ignore[attr-defined]
-    if hasattr(geometry, "aabb"):
-        return geometry.aabb  # type: ignore[attr-defined]
-    return None
-
-
-def _as_obb(region: BoundingRegion3D) -> OrientedBoundingBox:
-    if isinstance(region, OrientedBoundingBox):
-        return region
-    return OrientedBoundingBox.from_axis_aligned(region)
-
-
-def _as_aabb(region: BoundingRegion3D) -> AxisAlignedBoundingBox:
-    if isinstance(region, AxisAlignedBoundingBox):
-        return region
-    return region.to_axis_aligned_bounding_box()
 
 
 def _aabb_overlap_volume(a: AxisAlignedBoundingBox, b: AxisAlignedBoundingBox) -> float:
@@ -88,9 +70,7 @@ class CoverAssigner:
         by_index: dict[int, tuple[Aggregate, BoundingRegion3D]] = {}
         items: list[tuple[int, BoundingRegion3D]] = []
         for i, cover in enumerate(covers):
-            region = _region(cover.geometry)
-            if region is None:
-                continue
+            region = cover.geometry.bounding_region
             by_index[i] = (cover, region)
             items.append((i, region))
         index = RTreeIndex3D(items)
@@ -99,9 +79,7 @@ class CoverAssigner:
         for element in elements:
             if isinstance(element, Aggregate):
                 continue
-            region = _region(element.geometry)
-            if region is None:
-                continue
+            region = element.geometry.bounding_region
 
             best = self._best_cover(element, region, index, by_index)
             if best is None:
@@ -120,20 +98,20 @@ class CoverAssigner:
         index: RTreeIndex3D,
         by_index: dict[int, tuple[Aggregate, BoundingRegion3D]],
     ) -> Aggregate | None:
-        element_obb = _as_obb(region)
-        element_aabb = _as_aabb(region)
+        element_obb = as_oriented(region)
+        element_aabb = as_axis_aligned(region)
         query = region.expanded(self._tolerance) if self._tolerance > 0.0 else region
 
         best_cover: Aggregate | None = None
         best_overlap = -1.0
         for idx in index.intersection(query):
             cover, cover_region = by_index[idx]
-            cover_obb = _as_obb(cover_region)
+            cover_obb = as_oriented(cover_region)
             if self._tolerance > 0.0:
                 cover_obb = cover_obb.expanded(self._tolerance)
             if not cover_obb.intersects(element_obb):
                 continue
-            overlap = _aabb_overlap_volume(_as_aabb(cover_region), element_aabb)
+            overlap = _aabb_overlap_volume(as_axis_aligned(cover_region), element_aabb)
             if overlap > best_overlap:
                 best_overlap = overlap
                 best_cover = cover

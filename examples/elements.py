@@ -14,15 +14,22 @@ test suite's fake adapter.)
 from __future__ import annotations
 
 from pycadwork import (
+    AuxiliaryElement,
     AxisPoints,
     Beam,
+    ConnectorAxis,
     CrossSection,
     Drilling,
+    Line,
+    Node,
+    Opening,
     PanelSection,
     Plate,
     Point3D,
     RectSection,
     Segment,
+    Surface,
+    Vector3D,
     from_id,
 )
 
@@ -86,12 +93,52 @@ def demo_create_a_drilling() -> Drilling:
     return drilling
 
 
+def demo_more_element_types() -> None:
+    """Beyond beams and plates: the rest of the primitive and special wrappers.
+
+    Each ``create*`` classmethod routes through the seam and returns a typed
+    wrapper. They share the same ``attrs`` / ``geometry`` component surface.
+    """
+    node = Node.create(Point3D(0, 0, 0))  # a single positioned point
+    line = Line.create(Segment(Point3D(0, 0, 0), Point3D(1000, 0, 0)))
+    surface = Surface.create(
+        [Point3D(0, 0, 0), Point3D(500, 0, 0), Point3D(500, 500, 0), Point3D(0, 500, 0)]
+    )
+
+    # An Opening is a panel flagged to subtract from the cover it sits in.
+    opening = Opening.create_rectangular(
+        PanelSection(800, 18),
+        AxisPoints(Point3D(0, 0, 0), Point3D(900, 0, 0), Point3D(0, 0, 1)),
+    )
+
+    # A standard connector from the cadwork library, anchored on a segment.
+    connector = ConnectorAxis.create_standard(
+        Segment(Point3D(0, 0, 0), Point3D(0, 0, 120)), name="screw"
+    )
+
+    # An auxiliary helper built by extruding a surface along a vector.
+    auxiliary = AuxiliaryElement.from_surface_extrusion(surface, Vector3D(0, 0, 200))
+
+    for element in (node, line, surface, opening, connector, auxiliary):
+        print("created", type(element).__name__, "id", element.id)
+
+
 def demo_wrap_existing_id(beam: Beam) -> None:
-    """`from_id` wraps an existing id in its most specific subclass."""
+    """`from_id` wraps an existing id in its most specific subclass.
+
+    The wrapping is driven by a registry of (predicate, priority) entries — each
+    element class registers itself with ``@register_element``, and ``from_id``
+    picks the highest-priority class whose predicate matches the element's type.
+    """
     same = from_id(beam.id)
     print("from_id ->", type(same).__name__, "id", same.id)  # Beam
     assert isinstance(same, Beam)
     assert same == beam  # equality is by (type, id)
+
+    # The same dispatch types every element — a freshly created Node round-trips
+    # back to a Node, never the bare Element base.
+    node = Node.create(Point3D(1, 2, 3))
+    print("from_id(node) ->", type(from_id(node.id)).__name__)  # Node
 
 
 def run() -> None:
@@ -101,6 +148,7 @@ def run() -> None:
     demo_write_back_dimensions(beam)
     demo_create_a_plate()
     demo_create_a_drilling()
+    demo_more_element_types()
     demo_wrap_existing_id(beam)
 
 
