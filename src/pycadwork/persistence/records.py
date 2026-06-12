@@ -192,6 +192,46 @@ class StoreyAssignmentRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class MaterialRecord:
+    """One row of ``material`` — the deduplicated master of one material.
+
+    Keyed by ``(project_guid, material_name)``: a material is stored once per
+    project regardless of how many elements carry it. Holds the structural +
+    identity subset read from cadwork's material catalog; thermal / fire /
+    commercial / texture properties are out of scope.
+    """
+
+    project_guid: ProjectGuid
+    material_name: str
+    group_name: str = ""
+    code: str = ""
+    grade: str = ""
+    quality: str = ""
+    modulus_elasticity_1: float = 0.0
+    modulus_elasticity_2: float = 0.0
+    modulus_elasticity_3: float = 0.0
+    shear_modulus_1: float = 0.0
+    shear_modulus_2: float = 0.0
+    weight: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class ElementMaterialRecord:
+    """One row of ``element_material`` — the link from an element to its material.
+
+    Carries the element's id *and* its cadwork GUID (the element-reference the
+    table is built around) and the ``material_name`` joining to the
+    :class:`MaterialRecord` master. Emitted only for elements that actually carry
+    a material, so every link points at a real master row.
+    """
+
+    project_guid: ProjectGuid
+    element_id: ElementId
+    cadwork_guid: CadworkGuid = CadworkGuid("")
+    material_name: str = ""
+
+
+@dataclass(frozen=True, slots=True)
 class ModelSnapshot:
     """Every record for one project, bundled for diffing and transfer.
 
@@ -212,6 +252,8 @@ class ModelSnapshot:
     buildings: tuple[BuildingRecord, ...] = ()
     storeys: tuple[StoreyRecord, ...] = ()
     storey_assignments: tuple[StoreyAssignmentRecord, ...] = field(default=())
+    materials: tuple[MaterialRecord, ...] = ()
+    element_materials: tuple[ElementMaterialRecord, ...] = ()
 
     # ---- per-element indexes (for the writer) ----
 
@@ -239,19 +281,28 @@ class ModelSnapshot:
             out.setdefault(m.container_id, []).append(m.member_id)
         return out
 
+    def materials_by_name(self) -> dict[str, MaterialRecord]:
+        return {m.material_name: m for m in self.materials}
+
+    def element_materials_by_element(self) -> dict[ElementId, ElementMaterialRecord]:
+        return {em.element_id: em for em in self.element_materials}
+
     # ---- flat, dependency-ordered iteration (for the unit of work) ----
 
     def all_records(self) -> Iterator[object]:
         """Yield every record in foreign-key-safe insertion order.
 
         Parents precede children: ``project`` and ``building`` first, then
-        ``storey`` and ``element``, then every element/storey satellite. A
+        ``storey``, the ``material`` master, and ``element``, then every
+        element/storey satellite — with ``element_material`` last, since its link
+        rows reference both ``element`` and ``material``. A
         :class:`~pycadwork.persistence.unit_of_work.UnitOfWork` that upserts in
         this order never trips an immediate FK check.
         """
         yield self.project
         yield from self.buildings
         yield from self.storeys
+        yield from self.materials
         yield from self.elements
         yield from self.attributes
         yield from self.geometries
@@ -259,3 +310,4 @@ class ModelSnapshot:
         yield from self.covers
         yield from self.container_members
         yield from self.storey_assignments
+        yield from self.element_materials

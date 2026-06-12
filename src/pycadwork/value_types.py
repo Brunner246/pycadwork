@@ -42,6 +42,7 @@ ProjectGuid = NewType("ProjectGuid", str)
 CadworkGuid = NewType("CadworkGuid", str)
 ContainerId = NewType("ContainerId", ElementId)
 MemberId = NewType("MemberId", ElementId)
+MaterialId = NewType("MaterialId", int)
 
 # ---- measurements ----
 # Defined only for quantities with a real return site today; ``Area`` is
@@ -66,6 +67,7 @@ __all__ = [
     "ElementId",
     "Height",
     "Length",
+    "MaterialId",
     "MemberId",
     "ProjectGuid",
     "Radius",

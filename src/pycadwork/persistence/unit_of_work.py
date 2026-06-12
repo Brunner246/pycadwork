@@ -22,7 +22,9 @@ from pycadwork.persistence.gateways import (
     ContainerMemberGateway,
     CoverGateway,
     ElementGateway,
+    ElementMaterialGateway,
     GeometryGateway,
+    MaterialGateway,
     ProjectGateway,
     StoreyAssignmentGateway,
     StoreyGateway,
@@ -34,8 +36,10 @@ from pycadwork.persistence.records import (
     BuildingRecord,
     ContainerMemberRecord,
     CoverRecord,
+    ElementMaterialRecord,
     ElementRecord,
     GeometryRecord,
+    MaterialRecord,
     ProjectRecord,
     StoreyAssignmentRecord,
     StoreyRecord,
@@ -56,6 +60,7 @@ class UnitOfWork:
             ProjectRecord: ProjectGateway(connection),
             BuildingRecord: BuildingGateway(connection),
             StoreyRecord: StoreyGateway(connection),
+            MaterialRecord: MaterialGateway(connection),
             ElementRecord: ElementGateway(connection),
             AttributeRecord: AttributeGateway(connection),
             GeometryRecord: GeometryGateway(connection),
@@ -63,6 +68,7 @@ class UnitOfWork:
             CoverRecord: CoverGateway(connection),
             ContainerMemberRecord: ContainerMemberGateway(connection),
             StoreyAssignmentRecord: StoreyAssignmentGateway(connection),
+            ElementMaterialRecord: ElementMaterialGateway(connection),
         }
         self._order: list[type] = list(self._gateways)
         self._new: list[object] = []

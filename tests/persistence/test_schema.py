@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pycadwork.persistence import open_sqlite
-from pycadwork.persistence.schema import TABLES
+from pycadwork.persistence.schema import ELEMENT_MATERIAL, MATERIAL, TABLES
 
 
 def _table_names(connection) -> set[str]:
@@ -11,10 +11,25 @@ def _table_names(connection) -> set[str]:
     return {row[0] for row in rows}
 
 
-def test_open_sqlite_creates_all_ten_tables() -> None:
+def test_open_sqlite_creates_all_tables() -> None:
     connection = open_sqlite(":memory:")
-    assert len(TABLES) == 10
+    assert len(TABLES) == 12
     assert set(TABLES) <= _table_names(connection)
+
+
+def test_material_tables_are_present_and_shaped() -> None:
+    connection = open_sqlite(":memory:")
+    assert {"material", "element_material"} <= _table_names(connection)
+
+    # The master is keyed by (project_guid, material_name); the link is keyed by
+    # the element and carries the element's cadwork GUID + the joining name.
+    assert MATERIAL.primary_key == ("project_guid", "material_name")
+    assert "modulus_elasticity_1" in MATERIAL.column_names
+    assert "cadwork_guid" in ELEMENT_MATERIAL.column_names
+
+    # The link table references both element and material (two composite FKs).
+    referenced = {fk.references for fk in ELEMENT_MATERIAL.foreign_keys}
+    assert referenced == {"element", "material"}
 
 
 def test_schema_is_idempotent() -> None:

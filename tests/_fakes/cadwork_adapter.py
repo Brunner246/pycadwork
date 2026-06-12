@@ -21,6 +21,8 @@ from pycadwork.cadwork_adapter.types import (
     ElementTypeSnapshot,
     FacetListLike,
     GroupingMode,
+    MaterialId,
+    MaterialSnapshot,
     PointTuple,
 )
 from pycadwork.geometry.point3d import Point3D
@@ -197,6 +199,10 @@ class FakeState:
     project_user_attribute_names: dict[int, str] = field(default_factory=dict)
     project_data: dict[str, str] = field(default_factory=dict)
     _next_project_guid: int = 1
+    # ---- material catalog (name <-> id, plus the per-material snapshot) ----
+    material_by_id: dict[MaterialId, MaterialSnapshot] = field(default_factory=dict)
+    material_id_by_name: dict[str, MaterialId] = field(default_factory=dict)
+    _next_material_id: int = 1
 
     def alloc(self, snapshot: ElementTypeSnapshot) -> _FakeElement:
         eid = self._next_id
@@ -810,6 +816,42 @@ class FakeProjectAdapter:
         return list(self._state.project_data.keys())
 
 
+class FakeMaterialAdapter:
+    def __init__(self, state: FakeState) -> None:
+        self._state = state
+
+    def _ensure(self, name: str) -> MaterialId:
+        """Resolve ``name`` to an id, registering a default material if unseen.
+
+        Mirrors the live catalog: assigning a material by name (via
+        ``set_material_name``) makes that name resolvable here, so a pull can
+        read it back. Tests wanting real structural data seed it with
+        :meth:`register` first.
+        """
+        ids = self._state.material_id_by_name
+        if name not in ids:
+            mid = MaterialId(self._state._next_material_id)
+            self._state._next_material_id += 1
+            ids[name] = mid
+            self._state.material_by_id[mid] = MaterialSnapshot(name=name)
+        return ids[name]
+
+    def register(self, snapshot: MaterialSnapshot) -> MaterialId:
+        """Test helper: add (or replace) a material with full properties."""
+        mid = self._ensure(snapshot.name)
+        self._state.material_by_id[mid] = snapshot
+        return mid
+
+    def get_material_id(self, name: str) -> MaterialId:
+        return self._ensure(name)
+
+    def get_all_material_ids(self) -> list[MaterialId]:
+        return list(self._state.material_by_id.keys())
+
+    def get_material(self, material_id: MaterialId) -> MaterialSnapshot:
+        return self._state.material_by_id[material_id]
+
+
 class FakeBimAdapter:
     def __init__(self, state: FakeState) -> None:
         self._state = state
@@ -864,6 +906,7 @@ class FakeCadworkAdapter:
         "display",
         "project",
         "bim",
+        "material",
     )
 
     def __init__(self) -> None:
@@ -875,3 +918,4 @@ class FakeCadworkAdapter:
         self.display = FakeDisplayAdapter(self.state)
         self.project = FakeProjectAdapter(self.state)
         self.bim = FakeBimAdapter(self.state)
+        self.material = FakeMaterialAdapter(self.state)

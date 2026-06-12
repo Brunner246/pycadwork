@@ -16,7 +16,7 @@ from pycadwork import (
     RectSection,
 )
 from pycadwork.cadwork_adapter import cadwork
-from pycadwork.cadwork_adapter.types import CoverKind, GroupingMode
+from pycadwork.cadwork_adapter.types import CoverKind, GroupingMode, MaterialSnapshot
 from pycadwork.persistence._diff import diff
 from pycadwork.persistence.mappers import ModelReader, ModelWriter
 from pycadwork.persistence.records import ElementRecord, ModelSnapshot, ProjectRecord
@@ -98,6 +98,48 @@ def test_read_captures_user_attributes_in_scan_range() -> None:
 
     user_attrs = snapshot.user_attributes_by_element()[beam.id]
     assert (user_attrs[0].attr_index, user_attrs[0].value) == (1, "spans-storeys")
+
+
+def test_read_dedupes_material_master_and_links_each_element() -> None:
+    cadwork.material.register(
+        MaterialSnapshot(
+            name="Pine",
+            group="Softwood",
+            grade="C24",
+            modulus_elasticity_1=11000.0,
+            shear_modulus_1=690.0,
+            weight=420.0,
+        )
+    )
+    b1, b2 = _beam(0), _beam(600)
+    b1.attrs.material_name = "Pine"
+    b2.attrs.material_name = "Pine"
+
+    snapshot = ModelReader().read()
+
+    # One master row for the shared material, carrying the structural props.
+    assert len(snapshot.materials) == 1
+    material = snapshot.materials_by_name()["Pine"]
+    assert material.group_name == "Softwood"
+    assert material.grade == "C24"
+    assert material.modulus_elasticity_1 == 11000.0
+    assert material.shear_modulus_1 == 690.0
+    assert material.weight == 420.0
+
+    # One link per element, carrying its id + cadwork GUID + the joining name.
+    links = snapshot.element_materials_by_element()
+    assert set(links) == {b1.id, b2.id}
+    assert links[b1.id].material_name == "Pine"
+    assert links[b1.id].cadwork_guid == b1.attrs.cadwork_guid
+
+
+def test_read_emits_no_material_row_for_an_unmaterialed_element() -> None:
+    _beam()  # never assigned a material
+
+    snapshot = ModelReader().read()
+
+    assert snapshot.materials == ()
+    assert snapshot.element_materials == ()
 
 
 # ---- ModelWriter ----

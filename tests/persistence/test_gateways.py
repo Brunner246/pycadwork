@@ -6,15 +6,19 @@ from pycadwork.persistence import open_sqlite
 from pycadwork.persistence.gateways import (
     BuildingGateway,
     ElementGateway,
+    ElementMaterialGateway,
     GeometryGateway,
+    MaterialGateway,
     ProjectGateway,
     StoreyAssignmentGateway,
     StoreyGateway,
 )
 from pycadwork.persistence.records import (
     BuildingRecord,
+    ElementMaterialRecord,
     ElementRecord,
     GeometryRecord,
+    MaterialRecord,
     ProjectRecord,
     StoreyAssignmentRecord,
     StoreyRecord,
@@ -137,6 +141,52 @@ def test_select_for_storey_is_scoped_to_one_storey() -> None:
     rows = gateway.select_for_storey("g", "B", "S0")
 
     assert [r.element_id for r in rows] == [1]
+
+
+def test_material_roundtrip_preserves_structural_props() -> None:
+    connection = open_sqlite(":memory:")
+    _seed_project(connection)
+    record = MaterialRecord(
+        "g",
+        "Pine",
+        group_name="Softwood",
+        grade="C24",
+        modulus_elasticity_1=11000.0,
+        shear_modulus_1=690.0,
+        weight=420.0,
+    )
+
+    MaterialGateway(connection).upsert(record)
+
+    assert MaterialGateway(connection).select_for_project("g") == [record]
+
+
+def test_element_material_link_roundtrips() -> None:
+    connection = open_sqlite(":memory:")
+    _seed_project(connection)
+    _seed_element(connection, 1)
+    MaterialGateway(connection).upsert(MaterialRecord("g", "Pine"))
+    record = ElementMaterialRecord("g", 1, "cadwork-guid-1", "Pine")
+
+    ElementMaterialGateway(connection).upsert(record)
+
+    assert ElementMaterialGateway(connection).select_for_project("g") == [record]
+
+
+def test_element_material_requires_an_existing_material() -> None:
+    # The link's (project_guid, material_name) FK must reference a master row.
+    import sqlite3
+
+    import pytest
+
+    connection = open_sqlite(":memory:")
+    _seed_project(connection)
+    _seed_element(connection, 1)
+
+    with pytest.raises(sqlite3.IntegrityError):
+        ElementMaterialGateway(connection).upsert(
+            ElementMaterialRecord("g", 1, "guid", "Nonexistent")
+        )
 
 
 def test_select_for_ids_filters_to_the_given_ids() -> None:

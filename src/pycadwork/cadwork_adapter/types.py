@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol
 
-from pycadwork.value_types import ElementId
+from pycadwork.value_types import ElementId, MaterialId
 
 # ``ElementId`` is defined in :mod:`pycadwork.value_types` (the single source of
 # truth for every typed value alias) and re-exported here so the cadwork seam
@@ -93,6 +93,30 @@ class ElementTypeSnapshot:
     is_solid_roof: bool = False
 
 
+@dataclass(frozen=True, slots=True)
+class MaterialSnapshot:
+    """A frozen view of one cadwork material's identity and structural data.
+
+    The cwapi3d adapter reads it once per material from ``material_controller``
+    (behind ``hasattr`` guards, so a leaner cwapi3d version simply yields the
+    defaults). ``name`` is the catalog key the rest of pycadwork joins on; the
+    remaining fields are the structural + identity subset persisted to SQL.
+    Thermal / fire / commercial / texture properties are deliberately omitted.
+    """
+
+    name: str = ""
+    group: str = ""
+    code: str = ""
+    grade: str = ""
+    quality: str = ""
+    modulus_elasticity_1: float = 0.0
+    modulus_elasticity_2: float = 0.0
+    modulus_elasticity_3: float = 0.0
+    shear_modulus_1: float = 0.0
+    shear_modulus_2: float = 0.0
+    weight: float = 0.0
+
+
 class VertexListLike(Protocol):
     """The minimal access pattern over a cadwork vertex_list."""
 
@@ -134,6 +158,8 @@ __all__ = [
     "FacetListLike",
     "GroupingMode",
     "InternalPolygonsLike",
+    "MaterialId",
+    "MaterialSnapshot",
     "PointTuple",
     "ROOF_KINDS",
     "SLAB_KINDS",

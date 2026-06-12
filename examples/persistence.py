@@ -37,15 +37,17 @@ from pycadwork.persistence.records import ElementRecord, ProjectRecord
 
 
 def _seed_model() -> None:
-    """A small model to mirror: one beam, one plate."""
-    Beam.create_rectangular(
+    """A small model to mirror: one beam, one plate, both given a material."""
+    beam = Beam.create_rectangular(
         RectSection(80, 200),
         AxisPoints(Point3D(0, 0, 0), Point3D(0, 3000, 0), Point3D(0, 0, 1)),
     )
-    Plate.create_rectangular(
+    plate = Plate.create_rectangular(
         PanelSection(600, 18),
         AxisPoints(Point3D(0, 0, 0), Point3D(2400, 0, 0), Point3D(0, 0, 1)),
     )
+    beam.attrs.material_name = "GL24h"
+    plate.attrs.material_name = "OSB/3"
 
 
 def demo_pull() -> None:
@@ -75,6 +77,30 @@ def demo_query_the_sql() -> None:
 
     widths = connection.execute("SELECT element_id, width FROM geometry")
     print("geometry widths =", dict(widths))
+
+
+def demo_query_materials() -> None:
+    """Material is normalized: a deduplicated `material` master + a per-element link.
+
+    Every element carrying a material gets one ``element_material`` row keyed by
+    its id (and carrying its cadwork GUID); the structural properties live once
+    per material in ``material``. Join the two to report each element's material.
+    """
+    connection = open_sqlite(":memory:")
+    Synchronizer().pull(connection)
+
+    materials = connection.execute(
+        "SELECT material_name, grade, modulus_elasticity_1 FROM material"
+    )
+    print("material master =", list(materials))
+
+    by_element = connection.execute(
+        "SELECT em.element_id, em.cadwork_guid, m.material_name, m.weight "
+        "FROM element_material em "
+        "JOIN material m ON m.project_guid = em.project_guid "
+        "AND m.material_name = em.material_name"
+    )
+    print("element -> material =", list(by_element))
 
 
 def demo_read_snapshot_without_sql() -> None:
@@ -147,6 +173,7 @@ def run() -> None:
     _seed_model()
     demo_pull()
     demo_query_the_sql()
+    demo_query_materials()
     demo_read_snapshot_without_sql()
     demo_diff_before_push()
     demo_push_is_a_noop_when_in_sync()

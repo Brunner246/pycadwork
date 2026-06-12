@@ -232,7 +232,48 @@ STOREY_ASSIGNMENT = Table(
     ),
 )
 
-# The ten tables, in foreign-key-safe creation order: parents before children.
+MATERIAL = Table(
+    name="material",
+    columns=(
+        Column("project_guid", _TEXT),
+        Column("material_name", _TEXT),
+        _text("group_name"),
+        _text("code"),
+        _text("grade"),
+        _text("quality"),
+        _real("modulus_elasticity_1"),
+        _real("modulus_elasticity_2"),
+        _real("modulus_elasticity_3"),
+        _real("shear_modulus_1"),
+        _real("shear_modulus_2"),
+        _real("weight"),
+    ),
+    primary_key=("project_guid", "material_name"),
+    foreign_keys=(ForeignKey(("project_guid",), "project", ("project_guid",)),),
+)
+
+ELEMENT_MATERIAL = Table(
+    name="element_material",
+    columns=(
+        Column("project_guid", _TEXT),
+        Column("element_id", _INTEGER),
+        _text("cadwork_guid"),
+        _text("material_name"),
+    ),
+    primary_key=("project_guid", "element_id"),
+    foreign_keys=(
+        ForeignKey(("project_guid", "element_id"), "element", ("project_guid", "id")),
+        ForeignKey(
+            ("project_guid", "material_name"),
+            "material",
+            ("project_guid", "material_name"),
+        ),
+    ),
+)
+
+# The twelve tables, in foreign-key-safe creation order: parents before children.
+# ``material`` (FK → project) and ``element_material`` (FK → element + material)
+# come last, after every table they reference.
 TABLE_DEFS: tuple[Table, ...] = (
     PROJECT,
     ELEMENT,
@@ -244,6 +285,8 @@ TABLE_DEFS: tuple[Table, ...] = (
     BUILDING,
     STOREY,
     STOREY_ASSIGNMENT,
+    MATERIAL,
+    ELEMENT_MATERIAL,
 )
 
 # Their names, same order — the public list the connection/tests rely on.

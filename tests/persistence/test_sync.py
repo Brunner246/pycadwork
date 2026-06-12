@@ -86,6 +86,38 @@ def test_pull_deletes_rows_for_elements_gone_from_the_model() -> None:
     assert remaining == {plate.id}
 
 
+def test_pull_writes_material_master_and_link_rows() -> None:
+    beam = _beam()
+    beam.attrs.material_name = "Pine"
+    connection = open_sqlite(":memory:")
+
+    Synchronizer().pull(connection)
+
+    # A joinable element → material relation, anchored on the element id + GUID.
+    rows = connection.execute(
+        "SELECT em.element_id, em.cadwork_guid, m.material_name "
+        "FROM element_material em "
+        "JOIN material m ON m.project_guid = em.project_guid "
+        "AND m.material_name = em.material_name"
+    )
+    assert rows == [(beam.id, beam.attrs.cadwork_guid, "Pine")]
+
+
+def test_pull_then_load_snapshot_reconstructs_materials() -> None:
+    from pycadwork.persistence import load_snapshot
+    from pycadwork.persistence._ids import ProjectGuid
+
+    beam = _beam()
+    beam.attrs.material_name = "Pine"
+    connection = open_sqlite(":memory:")
+    Synchronizer().pull(connection)
+
+    snapshot = load_snapshot(connection, ProjectGuid(Document().guid))
+
+    assert [m.material_name for m in snapshot.materials] == ["Pine"]
+    assert snapshot.element_materials_by_element()[beam.id].material_name == "Pine"
+
+
 # ---- push ----
 
 

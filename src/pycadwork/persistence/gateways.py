@@ -28,8 +28,10 @@ from pycadwork.persistence.records import (
     BuildingRecord,
     ContainerMemberRecord,
     CoverRecord,
+    ElementMaterialRecord,
     ElementRecord,
     GeometryRecord,
+    MaterialRecord,
     ProjectRecord,
     StoreyAssignmentRecord,
     StoreyRecord,
@@ -41,7 +43,9 @@ from pycadwork.persistence.schema import (
     CONTAINER_MEMBER,
     COVER,
     ELEMENT,
+    ELEMENT_MATERIAL,
     GEOMETRY,
+    MATERIAL,
     PROJECT,
     STOREY,
     STOREY_ASSIGNMENT,
@@ -158,6 +162,16 @@ class CoverGateway(TableDataGateway[CoverRecord]):
 class ContainerMemberGateway(TableDataGateway[ContainerMemberRecord]):
     record_cls = ContainerMemberRecord
     schema = CONTAINER_MEMBER
+
+
+class MaterialGateway(TableDataGateway[MaterialRecord]):
+    record_cls = MaterialRecord
+    schema = MATERIAL
+
+
+class ElementMaterialGateway(TableDataGateway[ElementMaterialRecord]):
+    record_cls = ElementMaterialRecord
+    schema = ELEMENT_MATERIAL
 
 
 class BuildingGateway(TableDataGateway[BuildingRecord]):

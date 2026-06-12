@@ -29,7 +29,9 @@ from pycadwork.persistence.gateways import (
     ContainerMemberGateway,
     CoverGateway,
     ElementGateway,
+    ElementMaterialGateway,
     GeometryGateway,
+    MaterialGateway,
     ProjectGateway,
     StoreyAssignmentGateway,
     StoreyGateway,
@@ -84,6 +86,10 @@ def load_snapshot(
         storeys=tuple(StoreyGateway(connection).select_for_project(project_guid)),
         storey_assignments=tuple(
             StoreyAssignmentGateway(connection).select_for_project(project_guid)
+        ),
+        materials=tuple(MaterialGateway(connection).select_for_project(project_guid)),
+        element_materials=tuple(
+            ElementMaterialGateway(connection).select_for_project(project_guid)
         ),
     )
 

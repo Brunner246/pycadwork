@@ -69,8 +69,10 @@ from pycadwork.persistence.records import (
     BuildingRecord,
     ContainerMemberRecord,
     CoverRecord,
+    ElementMaterialRecord,
     ElementRecord,
     GeometryRecord,
+    MaterialRecord,
     ModelSnapshot,
     ProjectRecord,
     StoreyAssignmentRecord,
@@ -115,24 +117,35 @@ class ModelReader:
         covers: list[CoverRecord] = []
         container_members: list[ContainerMemberRecord] = []
         assignments: list[StoreyAssignmentRecord] = []
+        element_materials: list[ElementMaterialRecord] = []
 
         for element in document.elements():
             eid = ElementId(element.id)
             parent = cadwork.elements.get_parent_container_id(eid)
             parent_id = ContainerId(parent) if parent and parent > 0 else None
+            cadwork_guid = CadworkGuid(element.attrs.cadwork_guid)
 
             elements.append(
                 ElementRecord(
                     project_guid=guid,
                     id=eid,
                     element_type=type(element).__name__.lower(),
-                    cadwork_guid=CadworkGuid(element.attrs.cadwork_guid),
+                    cadwork_guid=cadwork_guid,
                     parent_container_id=parent_id,
                 )
             )
             attributes.append(ModelReader._attribute_record(guid, element))
             geometries.append(ModelReader._geometry_record(guid, eid))
             user_attributes.extend(ModelReader._user_attribute_records(guid, element))
+
+            # A material link row only when the element actually carries a
+            # material — mirrors cover / storey-assignment rows, and keeps every
+            # link pointing at a real ``material`` master row.
+            material_name = element.attrs.material_name
+            if material_name:
+                element_materials.append(
+                    ElementMaterialRecord(guid, eid, cadwork_guid, material_name)
+                )
 
             if isinstance(element, Aggregate):
                 covers.append(CoverRecord(guid, eid, element.kind.value))
@@ -147,6 +160,7 @@ class ModelReader:
                 assignments.append(assignment)
 
         buildings, storeys = self._building_storey_records(guid, assignments)
+        materials = self._material_records(guid, element_materials)
 
         return ModelSnapshot(
             project=self._project_record(guid, document),
@@ -159,6 +173,8 @@ class ModelReader:
             buildings=tuple(buildings),
             storeys=tuple(storeys),
             storey_assignments=tuple(assignments),
+            materials=tuple(materials),
+            element_materials=tuple(element_materials),
         )
 
     # ---- per-record readers ----
@@ -294,6 +310,40 @@ class ModelReader:
             for (building, storey), elevation in sorted(elevations.items())
         ]
         return buildings, storeys
+
+    @staticmethod
+    def _material_records(
+        guid: ProjectGuid, links: Sequence[ElementMaterialRecord]
+    ) -> list[MaterialRecord]:
+        """One master row per distinct material the elements reference.
+
+        Built from the material *names* the elements carry (not the full
+        catalog), so every ``element_material`` link points at a master row that
+        exists and there are no orphan rows — the same "store what's referenced"
+        approach :meth:`_building_storey_records` takes for storeys. Each name is
+        resolved to its catalog id once and read into a structural snapshot.
+        """
+        records: list[MaterialRecord] = []
+        for name in sorted({link.material_name for link in links}):
+            material_id = cadwork.material.get_material_id(name)
+            snapshot = cadwork.material.get_material(material_id)
+            records.append(
+                MaterialRecord(
+                    project_guid=guid,
+                    material_name=name,
+                    group_name=snapshot.group,
+                    code=snapshot.code,
+                    grade=snapshot.grade,
+                    quality=snapshot.quality,
+                    modulus_elasticity_1=snapshot.modulus_elasticity_1,
+                    modulus_elasticity_2=snapshot.modulus_elasticity_2,
+                    modulus_elasticity_3=snapshot.modulus_elasticity_3,
+                    shear_modulus_1=snapshot.shear_modulus_1,
+                    shear_modulus_2=snapshot.shear_modulus_2,
+                    weight=snapshot.weight,
+                )
+            )
+        return records
 
 
 @dataclass(frozen=True, slots=True)
