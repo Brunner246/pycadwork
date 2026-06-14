@@ -22,7 +22,7 @@ Modules:
 * :mod:`examples.utilities`            — DisplayRefreshScope, suppressed_display, batch_apply
 * :mod:`examples.decorators`           — pure-Python class decorators (auto_repr, auto_eq)
 * :mod:`examples.persistence`          — mirror the model to SQL and back
-* :mod:`examples.persistence_queries`  — read the model into SQL, then query it (JOINs, BuildingQuery)
+* :mod:`examples.persistence_queries`  — read the model into SQL, then query it (BuildingQuery)
 * :mod:`examples.sql_builder`          — the table-as-data SQL builder; query a pulled model
 * :mod:`examples.reporting`            — cutting lists and material totals over a snapshot
 
