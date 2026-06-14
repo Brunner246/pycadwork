@@ -30,5 +30,6 @@ def fake_cadwork(monkeypatch: pytest.MonkeyPatch) -> FakeCadworkAdapter:
     monkeypatch.setattr(singleton, "project", fake.project)
     monkeypatch.setattr(singleton, "bim", fake.bim)
     monkeypatch.setattr(singleton, "material", fake.material)
+    monkeypatch.setattr(singleton, "operations", fake.operations)
     monkeypatch.setattr(_adapter_module, "cadwork", fake)
     return fake

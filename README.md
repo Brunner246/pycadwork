@@ -51,7 +51,7 @@ element's "kind" by calling a battery of `is_*` predicates by hand.
    boxes, B-reps and a spatial index — proper objects with operators and
    methods, not bare tuples.
 4. **Testable without cadwork.** The seam means the whole library runs against
-   an in-memory fake. The suite (554 tests) needs no running cadwork process.
+   an in-memory fake. The suite (630 tests) needs no running cadwork process.
 
 ---
 
@@ -150,6 +150,7 @@ flowchart TD
         geometry["geometry/<br/>Point3D · Vector3D · Frame3D<br/>Brep · AABB/OBB · RTreeIndex"]
         utility["utility/<br/>DisplayRefreshScope · batch_apply"]
         persistence["persistence/<br/>Synchronizer · gateways · UnitOfWork"]
+        reporting["reporting/<br/>cutting_list · material_totals · by_*"]
     end
 
     sqlite["SQLite (stdlib)"]
@@ -157,13 +158,14 @@ flowchart TD
     cwapi3d["cwapi3d"]
     cadwork["cadwork 3D"]
     
-    app --> document & element & cover & connectivity & building & utility & persistence
+    app --> document & element & cover & connectivity & building & utility & persistence & reporting
     document --> element
     element --> geometry
     cover --> element
     connectivity --> element & geometry
     building --> element & geometry
     persistence --> document & element
+    reporting --> persistence
     document & element & cover & connectivity & building & utility & persistence --> seam
     persistence --> sqlite
     seam --> cwapi3d --> cadwork
@@ -192,6 +194,7 @@ stable types crossing the seam are the aliases and value objects in
 | `pycadwork.building`        | `StoreyAssigner` and the pure `StoreyStack` — classify elements into a building's storeys from their vertical extent (BMT building/storey structure).                                                                                    |
 | `pycadwork.utility`         | Cross-cutting helpers: `DisplayRefreshScope`, `batch_apply`, and `auto_*` decorators.                                                                                                                                                    |
 | `pycadwork.persistence`     | Mirror the running model to a normalized SQL database and back — `Synchronizer` (`pull` / `push`), Table Data Gateways, a `UnitOfWork`, and frozen record DTOs.                                                                          |
+| `pycadwork.reporting`       | Bill of materials over a `ModelSnapshot` — `cutting_list`, `material_totals`, composable `by_*` grouping dimensions, and CSV writers. Pure functions; works on a live read or a pulled SQL store.                                        |
 
 The top-level namespace re-exports the full public surface, so you can write
 `from pycadwork import Beam, Wall, CoverBuilder, Point3D` without knowing the
@@ -562,9 +565,10 @@ a pluggable `GatewayConnection` Protocol — **no new dependency**.
 
 ### Snapshot the model into SQL — `pull`
 
-`open_sqlite` opens (or creates) a database and applies the schema — ten tables:
-`project`, `element`, `attribute`, `geometry`, `user_attribute`, `cover`,
-`container_member`, `building`, `storey`, `storey_assignment`. `pull` is
+`open_sqlite` opens (or creates) a database and applies the schema — twelve
+tables: `project`, `element`, `attribute`, `geometry`, `user_attribute`,
+`cover`, `container_member`, `building`, `storey`, `storey_assignment`,
+`material`, `element_material`. `pull` is
 idempotent (upsert by `(project_guid, element_id)`) and deletes rows for elements
 that have left the model:
 
@@ -729,6 +733,59 @@ gateways, the unit of work, or the mappers.
 
 ---
 
+## Reporting: cutting lists & material totals
+
+`pycadwork.reporting` is the quantity-takeoff layer: pure functions over the
+same `ModelSnapshot` the persistence layer reads and writes. Because both
+sources produce a snapshot, every report runs identically against the **live
+model** (`ModelReader().read()`) or a **pulled SQL store**
+(`load_snapshot(connection, guid)`) — and the module itself never touches
+cadwork or SQL, so it is unit-testable from record literals.
+
+`cutting_list` collapses identical parts — same type, material, name, and
+dimensions rounded to `precision` — into one counted row; `material_totals`
+sums count/volume/weight per material. Both default to the path-anchored stock
+(`beam`, `plate`, MEP runs) and carry the aggregated element ids for
+traceability:
+
+```python
+from pycadwork import cutting_list, material_totals
+from pycadwork.persistence import ModelReader
+
+snapshot = ModelReader().read()
+
+for row in cutting_list(snapshot):
+    print(f"{row.count}x {row.name} {row.material_name} "
+          f"{row.length:.0f} x {row.width:.0f} x {row.height:.0f}")
+
+for row in material_totals(snapshot):
+    print(row.material_name, row.count, row.total_volume)
+```
+
+Grouping is **composable**, not a set of hardcoded report variants. Each
+`by_*` factory yields one `Dimension` axis (a label plus a key function), and
+a report groups by the tuple of the axes you pass:
+
+```python
+from pycadwork import by_cover, by_material, by_storey, cutting_list
+
+# per storey AND per material, in one pass
+rows = cutting_list(snapshot, dimensions=(by_storey(), by_material()))
+rows[0].group  # ("Building A/S0", "Pine")
+
+# per owning wall/slab/roof — pass the field carrying the membership link,
+# since the snapshot does not store the project's active grouping mode
+rows = cutting_list(snapshot, dimensions=(by_cover(link="group"),))
+```
+
+A custom axis is one `Dimension(label, key_fn)` — no changes to the report
+functions. For files, the stream-based stdlib-csv writers
+(`pycadwork.reporting.write_parts_csv` / `write_material_totals_csv`) expand
+each dimension into one labelled column. A runnable tour lives in
+[`examples/reporting.py`](examples/reporting.py).
+
+---
+
 ## Utilities
 
 ### Suppressing display refresh during bulk work
@@ -770,7 +827,7 @@ The single-seam design is what makes the library testable without cadwork. A
 `FakeCadworkAdapter` on every test, so the full suite runs anywhere:
 
 ```bash
-uv run pytest                       # full suite (554 tests, no cadwork needed)
+uv run pytest                       # full suite (630 tests, no cadwork needed)
 uv run pytest tests/element         # one area
 uv run pytest -k connectivity       # by keyword
 ```

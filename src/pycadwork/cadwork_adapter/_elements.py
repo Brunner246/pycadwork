@@ -5,8 +5,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-import attribute_controller
-
 from pycadwork.cadwork_adapter._helpers import to_cadwork_point
 from pycadwork.cadwork_adapter.types import ElementId, ElementTypeSnapshot
 from pycadwork.geometry.point3d import Point3D
@@ -234,6 +232,11 @@ class ElementsAdapter:
         import element_controller
 
         element_controller.delete_elements(list(eids))
+
+    def element_exists(self, eid: ElementId) -> bool:
+        import element_controller
+
+        return element_controller.check_element_id(eid)
 
     # ---- type introspection ----
 

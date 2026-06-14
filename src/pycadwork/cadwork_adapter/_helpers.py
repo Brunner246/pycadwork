@@ -9,12 +9,24 @@ from __future__ import annotations
 from typing import Any
 
 from pycadwork.cadwork_adapter.types import GroupingMode, PointTuple
+from pycadwork.geometry.plane3d import Plane3D
 from pycadwork.geometry.point3d import Point3D
 
 
 def to_cadwork_point(cadwork_module: Any, p: Point3D) -> Any:
     """Wrap a :class:`Point3D` in cadwork's native ``point_3d``."""
     return cadwork_module.point_3d(p.x, p.y, p.z)
+
+
+def plane_to_cadwork_args(cadwork_module: Any, plane: Plane3D) -> tuple[Any, float]:
+    """Translate a :class:`Plane3D` into cwapi3d's ``(normal, distance)`` pair.
+
+    cwapi3d describes a cut plane as ``n . x = distance`` (distance from the
+    global origin along the normal); :class:`Plane3D` stores ``d = -n . P0``,
+    so the distance is ``-plane.d()``.
+    """
+    n = plane.normal
+    return (cadwork_module.point_3d(n.x, n.y, n.z), -plane.d())
 
 
 def to_tuple(p: Any) -> PointTuple:

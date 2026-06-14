@@ -22,11 +22,14 @@ caching except the immutable :class:`ElementTypeSnapshot` held on
 
 from __future__ import annotations
 
-from typing import Generic, TypeVar, cast
+from typing import TYPE_CHECKING, Generic, TypeVar, cast
 
 from pycadwork.cadwork_adapter import cadwork
 from pycadwork.cadwork_adapter.types import ElementId, ElementTypeSnapshot
 from pycadwork.element.components import Attributes, Geometry
+
+if TYPE_CHECKING:
+    from pycadwork.geometry.plane3d import Plane3D
 
 # Classic ``Generic[GeometryT]`` rather than the PEP 695 ``class Element[G]``
 # syntax: PyCharm (and other IDEs) resolve subscripted classic generics plus a
@@ -94,6 +97,24 @@ class Element(Generic[GeometryT]):
 
     def delete(self) -> None:
         cadwork.elements.delete_elements([self._id])
+
+    # ---- shape operations ----
+    # Only the genuinely unary ops live here; everything multi-element stays
+    # in ``pycadwork.ops`` so no operand is arbitrarily privileged. Late
+    # imports avoid the base <-> ops cycle. No ``_invalidate_type()``:
+    # booleans change shape, never the cadwork type.
+
+    def cut_with_plane(self, plane: Plane3D) -> bool:
+        """Cut this element with ``plane``; ``False`` when the plane misses it."""
+        from pycadwork.ops import boolean
+
+        return boolean.cut_with_plane(self, plane)
+
+    def slice_with_plane(self, plane: Plane3D) -> list[Element]:
+        """Slice this element with ``plane`` and return the new pieces."""
+        from pycadwork.ops import boolean
+
+        return boolean.slice_with_plane(self, plane)
 
     # ---- equality / hashing / repr ----
 
