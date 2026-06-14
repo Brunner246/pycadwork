@@ -21,8 +21,11 @@ from pycadwork.cadwork_adapter.types import (
     ElementTypeSnapshot,
     FacetListLike,
     GroupingMode,
+    MaterialId,
+    MaterialSnapshot,
     PointTuple,
 )
+from pycadwork.geometry.plane3d import Plane3D
 from pycadwork.geometry.point3d import Point3D
 from pycadwork.geometry.specs import (
     AxisFrame,
@@ -197,6 +200,36 @@ class FakeState:
     project_user_attribute_names: dict[int, str] = field(default_factory=dict)
     project_data: dict[str, str] = field(default_factory=dict)
     _next_project_guid: int = 1
+    # ---- material catalog (name <-> id, plus the per-material snapshot) ----
+    material_by_id: dict[MaterialId, MaterialSnapshot] = field(default_factory=dict)
+    material_id_by_name: dict[str, MaterialId] = field(default_factory=dict)
+    _next_material_id: int = 1
+    # ---- operations observables (recording style) ----
+    solder_calls: list[list[ElementId]] = field(default_factory=list)
+    subtract_calls: list[tuple[list[ElementId], list[ElementId], bool]] = field(
+        default_factory=list
+    )
+    split_calls: list[list[ElementId]] = field(default_factory=list)
+    plane_cut_calls: list[tuple[ElementId, PointTuple, float]] = field(
+        default_factory=list
+    )
+    miter_calls: list[tuple[ElementId, ElementId]] = field(default_factory=list)
+    overmeasure_calls: list[tuple[list[ElementId], list[ElementId]]] = field(
+        default_factory=list
+    )
+    processing_group_calls: list[tuple[ElementId, ElementId]] = field(
+        default_factory=list
+    )
+    keep_cutting_bodies_calls: list[tuple[list[ElementId], bool]] = field(
+        default_factory=list
+    )
+    delete_processes_calls: list[list[ElementId]] = field(default_factory=list)
+    delete_end_types_calls: list[list[ElementId]] = field(default_factory=list)
+    # ---- operations behaviour, seeded by tests ----
+    # how many cutting bodies delete_processes_keep_cutting_bodies fabricates per eid
+    pending_cutting_bodies: dict[ElementId, int] = field(default_factory=dict)
+    # split-off piece ids the next subtract_elements call returns (pop-all)
+    pending_subtract_pieces: list[ElementId] = field(default_factory=list)
 
     def alloc(self, snapshot: ElementTypeSnapshot) -> _FakeElement:
         eid = self._next_id
@@ -399,6 +432,9 @@ class FakeElementsAdapter:
     def delete_elements(self, eids: list[ElementId]) -> None:
         for eid in eids:
             self._state.elements.pop(eid, None)
+
+    def element_exists(self, eid: ElementId) -> bool:
+        return eid in self._state.elements
 
     # ---- type introspection ----
 
@@ -810,6 +846,140 @@ class FakeProjectAdapter:
         return list(self._state.project_data.keys())
 
 
+class FakeMaterialAdapter:
+    def __init__(self, state: FakeState) -> None:
+        self._state = state
+
+    def _ensure(self, name: str) -> MaterialId:
+        """Resolve ``name`` to an id, registering a default material if unseen.
+
+        Mirrors the live catalog: assigning a material by name (via
+        ``set_material_name``) makes that name resolvable here, so a pull can
+        read it back. Tests wanting real structural data seed it with
+        :meth:`register` first.
+        """
+        ids = self._state.material_id_by_name
+        if name not in ids:
+            mid = MaterialId(self._state._next_material_id)
+            self._state._next_material_id += 1
+            ids[name] = mid
+            self._state.material_by_id[mid] = MaterialSnapshot(name=name)
+        return ids[name]
+
+    def register(self, snapshot: MaterialSnapshot) -> MaterialId:
+        """Test helper: add (or replace) a material with full properties."""
+        mid = self._ensure(snapshot.name)
+        self._state.material_by_id[mid] = snapshot
+        return mid
+
+    def get_material_id(self, name: str) -> MaterialId:
+        return self._ensure(name)
+
+    def get_all_material_ids(self) -> list[MaterialId]:
+        return list(self._state.material_by_id.keys())
+
+    def get_material(self, material_id: MaterialId) -> MaterialSnapshot:
+        return self._state.material_by_id[material_id]
+
+
+class FakeOperationsAdapter:
+    """Recording fake: remembers every call, fabricates results from seeded state."""
+
+    def __init__(self, state: FakeState) -> None:
+        self._state = state
+
+    # ---- boolean solids ----
+
+    def solder_elements(self, eids: list[ElementId]) -> list[ElementId]:
+        self._state.solder_calls.append(list(eids))
+        first, *rest = eids
+        for eid in rest:
+            self._state.elements.pop(eid, None)
+        return [first]
+
+    def _subtract(
+        self,
+        hard_eids: list[ElementId],
+        soft_eids: list[ElementId],
+        with_undo: bool,
+    ) -> list[ElementId]:
+        self._state.subtract_calls.append((list(hard_eids), list(soft_eids), with_undo))
+        pieces = list(self._state.pending_subtract_pieces)
+        self._state.pending_subtract_pieces.clear()
+        return pieces
+
+    def subtract_elements(
+        self, hard_eids: list[ElementId], soft_eids: list[ElementId]
+    ) -> list[ElementId]:
+        return self._subtract(hard_eids, soft_eids, False)
+
+    def subtract_elements_with_undo(
+        self,
+        hard_eids: list[ElementId],
+        soft_eids: list[ElementId],
+        with_undo: bool,
+    ) -> list[ElementId]:
+        return self._subtract(hard_eids, soft_eids, with_undo)
+
+    def split_elements(self, eids: list[ElementId]) -> None:
+        self._state.split_calls.append(list(eids))
+
+    # ---- plane / miter / overmeasure cuts ----
+
+    def _record_plane(self, eid: ElementId, plane: Plane3D) -> None:
+        normal = (plane.normal.x, plane.normal.y, plane.normal.z)
+        self._state.plane_cut_calls.append((eid, normal, -plane.d()))
+
+    def cut_element_with_plane(self, eid: ElementId, plane: Plane3D) -> bool:
+        self._record_plane(eid, plane)
+        return eid in self._state.elements
+
+    def slice_element_with_plane_get_new(
+        self, eid: ElementId, plane: Plane3D
+    ) -> list[ElementId]:
+        self._record_plane(eid, plane)
+        el = self._state.alloc(self._state.elements[eid].snapshot)
+        return [el.eid]
+
+    def cut_elements_with_miter(
+        self, first_eid: ElementId, second_eid: ElementId
+    ) -> bool:
+        self._state.miter_calls.append((first_eid, second_eid))
+        return True
+
+    def cut_elements_with_overmeasure(
+        self, hard_eids: list[ElementId], soft_eids: list[ElementId]
+    ) -> None:
+        self._state.overmeasure_calls.append((list(hard_eids), list(soft_eids)))
+
+    def cut_element_with_processing_group(
+        self, soft_eid: ElementId, processing_eid: ElementId
+    ) -> None:
+        self._state.processing_group_calls.append((soft_eid, processing_eid))
+
+    # ---- process management ----
+
+    def delete_processes_keep_cutting_bodies(
+        self, eids: list[ElementId], keep_cutting_elements_only: bool
+    ) -> list[ElementId]:
+        self._state.keep_cutting_bodies_calls.append(
+            (list(eids), keep_cutting_elements_only)
+        )
+        out: list[ElementId] = []
+        for eid in eids:
+            count = self._state.pending_cutting_bodies.pop(eid, 0)
+            for _ in range(count):
+                el = self._state.alloc(ElementTypeSnapshot(is_auxiliary=True))
+                out.append(el.eid)
+        return out
+
+    def delete_all_element_processes(self, eids: list[ElementId]) -> None:
+        self._state.delete_processes_calls.append(list(eids))
+
+    def delete_all_element_end_types(self, eids: list[ElementId]) -> None:
+        self._state.delete_end_types_calls.append(list(eids))
+
+
 class FakeBimAdapter:
     def __init__(self, state: FakeState) -> None:
         self._state = state
@@ -864,6 +1034,8 @@ class FakeCadworkAdapter:
         "display",
         "project",
         "bim",
+        "material",
+        "operations",
     )
 
     def __init__(self) -> None:
@@ -875,3 +1047,5 @@ class FakeCadworkAdapter:
         self.display = FakeDisplayAdapter(self.state)
         self.project = FakeProjectAdapter(self.state)
         self.bim = FakeBimAdapter(self.state)
+        self.material = FakeMaterialAdapter(self.state)
+        self.operations = FakeOperationsAdapter(self.state)

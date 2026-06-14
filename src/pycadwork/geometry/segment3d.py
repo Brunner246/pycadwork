@@ -3,6 +3,7 @@ from __future__ import annotations
 from pycadwork.geometry.line3d import Line3D
 from pycadwork.geometry.point3d import Point3D
 from pycadwork.geometry.vector3d import Vector3D
+from pycadwork.value_types import Distance, Length
 
 
 class Segment3D:
@@ -51,8 +52,8 @@ class Segment3D:
     # Derived quantities
     # ------------------------------------------------------------------
 
-    def length(self) -> float:
-        return self._p1.distance_to(self._p2)
+    def length(self) -> Length:
+        return Length(self._p1.distance_to(self._p2))
 
     def length_squared(self) -> float:
         return self._p1.distance_squared_to(self._p2)
@@ -95,7 +96,7 @@ class Segment3D:
             return self._p2
         return self.point_at(t)
 
-    def distance_to_point(self, query: Point3D) -> float:
+    def distance_to_point(self, query: Point3D) -> Distance:
         return query.distance_to(self.closest_point(query))
 
     def distance_squared_to_point(self, query: Point3D) -> float:

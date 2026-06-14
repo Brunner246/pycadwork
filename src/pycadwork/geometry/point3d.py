@@ -4,6 +4,7 @@ import math
 from typing import overload
 
 from pycadwork.geometry.vector3d import Vector3D
+from pycadwork.value_types import Distance
 
 _COMPARISON_EPSILON = 1e-10
 
@@ -85,8 +86,8 @@ class Point3D:
     # Distance
     # ------------------------------------------------------------------
 
-    def distance_to(self, other: Point3D) -> float:
-        return math.sqrt(self.distance_squared_to(other))
+    def distance_to(self, other: Point3D) -> Distance:
+        return Distance(math.sqrt(self.distance_squared_to(other)))
 
     def distance_squared_to(self, other: Point3D) -> float:
         dx = self.x - other.x

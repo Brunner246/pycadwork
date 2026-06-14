@@ -15,7 +15,7 @@ from collections.abc import Iterable
 from typing import Any, ClassVar, TypeVar
 
 from pycadwork.cadwork_adapter import cadwork
-from pycadwork.cadwork_adapter.types import CoverKind, GroupingMode
+from pycadwork.cadwork_adapter.types import CoverKind, ElementId, GroupingMode
 from pycadwork.element.base import Element
 from pycadwork.element.cover.group import Group
 
@@ -66,7 +66,7 @@ class Aggregate(Element):
     def _group_key(self) -> str:
         return self._group().key
 
-    def _set_group_key(self, eids: list[int], key: str) -> None:
+    def _set_group_key(self, eids: list[ElementId], key: str) -> None:
         if Group.active_mode() is GroupingMode.GROUP:
             cadwork.attributes.set_group(eids, key)
         else:

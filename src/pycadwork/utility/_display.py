@@ -14,6 +14,7 @@ from functools import wraps
 from typing import TypeVar
 
 from pycadwork.cadwork_adapter import cadwork
+from pycadwork.cadwork_adapter.types import ElementId
 from pycadwork.element import Element
 
 R = TypeVar("R")
@@ -40,7 +41,7 @@ class DisplayRefreshScope(ContextDecorator):
     """
 
     def __init__(self) -> None:
-        self._to_recreate: list[int] = []
+        self._to_recreate: list[ElementId] = []
 
     def __enter__(self) -> "DisplayRefreshScope":
         cadwork.display.disable_auto_display_refresh()

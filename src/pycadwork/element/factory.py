@@ -13,6 +13,7 @@ import warnings
 from typing import Any
 
 from pycadwork.cadwork_adapter import cadwork
+from pycadwork.cadwork_adapter.types import ElementId
 from pycadwork.element.base import Element
 from pycadwork.element.registry import REGISTRY
 
@@ -24,7 +25,7 @@ def from_id(eid: int) -> Element[Any]:
     matches — that means cadwork has a type we haven't taught the OOP layer
     about yet.
     """
-    snap = cadwork.elements.get_element_type(int(eid))
+    snap = cadwork.elements.get_element_type(ElementId(int(eid)))
     cls = REGISTRY.resolve(snap)
     if cls is None:
         warnings.warn(

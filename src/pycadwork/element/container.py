@@ -20,6 +20,7 @@ from collections.abc import Iterable
 from typing import Any, Self, TypeVar
 
 from pycadwork.cadwork_adapter import cadwork
+from pycadwork.cadwork_adapter.types import ElementId
 from pycadwork.element.base import Element
 from pycadwork.element.factory import from_id
 from pycadwork.element.registry import AGGREGATE, register_element
@@ -111,8 +112,10 @@ def discover_containers(ids: Iterable[int] | None = None) -> list[Container]:
     :attr:`Container.children` -- discovery only finds the parents.
     """
     elements = cadwork.elements
-    eids: Iterable[int] = (
-        list(ids) if ids is not None else elements.get_active_identifiable_element_ids()
+    eids: Iterable[ElementId] = (
+        [ElementId(i) for i in ids]
+        if ids is not None
+        else elements.get_active_identifiable_element_ids()
     )
 
     containers: list[Container] = []

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from pycadwork.cadwork_adapter import cadwork
 from pycadwork.cadwork_adapter.types import ElementId
+from pycadwork.value_types import CadworkGuid
 
 
 class Attributes:
@@ -98,9 +99,9 @@ class Attributes:
     # ---- cadwork-issued identifiers ----
 
     @property
-    def cadwork_guid(self) -> str:
+    def cadwork_guid(self) -> CadworkGuid:
         """The cadwork-issued GUID for this element. Read-only in cwapi3d."""
-        return cadwork.attributes.get_cadwork_guid(self._id)
+        return CadworkGuid(cadwork.attributes.get_cadwork_guid(self._id))
 
     # ---- free-form metadata ----
 

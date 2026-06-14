@@ -16,6 +16,7 @@ attributes:
 from __future__ import annotations
 
 from pycadwork.cadwork_adapter import cadwork
+from pycadwork.value_types import CadworkGuid, ProjectGuid
 
 
 class ProjectInfo:
@@ -26,13 +27,13 @@ class ProjectInfo:
     # ---- identity ----
 
     @property
-    def guid(self) -> str:
+    def guid(self) -> ProjectGuid:
         """The project GUID. Read-only in cwapi3d."""
-        return cadwork.project.get_project_guid()
+        return ProjectGuid(cadwork.project.get_project_guid())
 
-    def new_guid(self) -> str:
+    def new_guid(self) -> CadworkGuid:
         """Generate a fresh GUID (cwapi3d's ``create_new_guid``)."""
-        return cadwork.project.create_new_guid()
+        return CadworkGuid(cadwork.project.create_new_guid())
 
     # ---- metadata (str) ----
 

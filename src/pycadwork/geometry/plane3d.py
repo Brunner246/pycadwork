@@ -4,6 +4,7 @@ import math
 
 from pycadwork.geometry.point3d import Point3D
 from pycadwork.geometry.vector3d import Vector3D
+from pycadwork.value_types import Angle, Distance
 
 
 class Plane3D:
@@ -101,8 +102,8 @@ class Plane3D:
         to_point = point - self._point  # Vector3D
         return self._normal.dot(to_point)
 
-    def distance_to_point(self, point: Point3D) -> float:
-        return abs(self.signed_distance_to(point))
+    def distance_to_point(self, point: Point3D) -> Distance:
+        return Distance(abs(self.signed_distance_to(point)))
 
     # ------------------------------------------------------------------
     # Point classification
@@ -153,17 +154,17 @@ class Plane3D:
             return False
         return self.contains(other._point, tolerance)
 
-    def angle_to(self, other: Plane3D) -> float:
+    def angle_to(self, other: Plane3D) -> Angle:
         cos_angle = self._normal.dot(other._normal)
         cos_angle = max(-1.0, min(1.0, cos_angle))
-        return math.acos(abs(cos_angle))
+        return Angle(math.acos(abs(cos_angle)))
 
     def distance_to_plane(
         self, other: Plane3D, tolerance: float = 1e-10
-    ) -> float | None:
+    ) -> Distance | None:
         if not self.is_parallel_to(other, tolerance):
             return None
-        return abs(self.signed_distance_to(other._point))
+        return Distance(abs(self.signed_distance_to(other._point)))
 
     # ------------------------------------------------------------------
     # Line/Ray intersection

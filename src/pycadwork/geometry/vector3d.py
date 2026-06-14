@@ -3,6 +3,8 @@ from __future__ import annotations
 import math
 from typing import TYPE_CHECKING
 
+from pycadwork.value_types import Angle, Length
+
 if TYPE_CHECKING:
     from pycadwork.geometry.point3d import Point3D
 
@@ -131,8 +133,8 @@ class Vector3D:
             self.x * other.y - self.y * other.x,
         )
 
-    def magnitude(self) -> float:
-        return math.sqrt(self.dot(self))
+    def magnitude(self) -> Length:
+        return Length(math.sqrt(self.dot(self)))
 
     def normalized(self) -> Vector3D:
         magnitude = self.magnitude()
@@ -154,13 +156,13 @@ class Vector3D:
     def is_zero(self, tolerance: float = _COMPARISON_EPSILON) -> bool:
         return self.dot(self) < tolerance * tolerance
 
-    def angle_to(self, other: Vector3D) -> float:
+    def angle_to(self, other: Vector3D) -> Angle:
         magnitude_product = math.sqrt(self.dot(self) * other.dot(other))
         if magnitude_product < _DIVISION_EPSILON:
-            return 0.0
+            return Angle(0.0)
         cos_angle = self.dot(other) / magnitude_product
         cos_angle = max(-1.0, min(1.0, cos_angle))
-        return math.acos(cos_angle)
+        return Angle(math.acos(cos_angle))
 
     def project_onto(self, other: Vector3D) -> Vector3D:
         other_magnitude_squared = other.dot(other)
