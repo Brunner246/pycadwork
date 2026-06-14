@@ -79,9 +79,7 @@ def _seed_model() -> None:
     beam = _beam_z(3000.0, 3200.0, "Spruce")
     plate = Plate.create_rectangular(
         PanelSection(600, 18),
-        AxisPoints(Point3D(0, 0, 100),
-                   Point3D(2400, 0, 100),
-                   Point3D(0, 0, 101)),
+        AxisPoints(Point3D(0, 0, 100), Point3D(2400, 0, 100), Point3D(0, 0, 101)),
     )
     plate.attrs.material_name = "OSB"
 
