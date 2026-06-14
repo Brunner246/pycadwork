@@ -20,9 +20,9 @@ Modules:
 * :mod:`examples.connectivity`         — find_connected and the connection graph
 * :mod:`examples.building_storeys`     — StoreyStack and StoreyAssigner
 * :mod:`examples.utilities`            — DisplayRefreshScope, suppressed_display, batch_apply
-* :mod:`examples.decorators`           — pure-Python class decorators (auto_repr, auto_eq, deprecated)
+* :mod:`examples.decorators`           — pure-Python class decorators (auto_repr, auto_eq)
 * :mod:`examples.persistence`          — mirror the model to SQL and back
-* :mod:`examples.persistence_queries`  — read the model into SQL, then query it (gateways, JOINs, BuildingQuery)
+* :mod:`examples.persistence_queries`  — read the model into SQL, then query it (JOINs, BuildingQuery)
 * :mod:`examples.sql_builder`          — the table-as-data SQL builder; query a pulled model
 * :mod:`examples.reporting`            — cutting lists and material totals over a snapshot
 
