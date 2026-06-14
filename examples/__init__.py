@@ -16,6 +16,7 @@ Modules:
 * :mod:`examples.elements`             — Beam / Plate / Drilling: create, read, write-back
 * :mod:`examples.document_and_project` — the Document repository and ProjectInfo
 * :mod:`examples.covers`               — Wall / Slab / Roof, CoverBuilder, discover_covers
+* :mod:`examples.details`              — author / serialize / load / realize element-module details
 * :mod:`examples.containers_and_mep`   — Container containment and MEP runs
 * :mod:`examples.connectivity`         — find_connected and the connection graph
 * :mod:`examples.building_storeys`     — StoreyStack and StoreyAssigner
@@ -43,6 +44,7 @@ MODULES: tuple[str, ...] = (
     "elements",
     "document_and_project",
     "covers",
+    "details",
     "containers_and_mep",
     "connectivity",
     "building_storeys",

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field, replace
+from typing import TYPE_CHECKING
 
 from pycadwork.cadwork_adapter.types import (
     CoverKind,
@@ -34,6 +35,9 @@ from pycadwork.geometry.specs import (
     RectSection,
     Segment,
 )
+
+if TYPE_CHECKING:
+    from pycadwork.detail.properties import ModuleProperties
 
 # ---- vertex / facet view types ----
 
@@ -230,6 +234,16 @@ class FakeState:
     pending_cutting_bodies: dict[ElementId, int] = field(default_factory=dict)
     # split-off piece ids the next subtract_elements call returns (pop-all)
     pending_subtract_pieces: list[ElementId] = field(default_factory=list)
+    # ---- element-module observables ----
+    # Records the *mirror* ModuleProperties applied (never a cadwork object).
+    module_applied: list[tuple[list[ElementId], "ModuleProperties"]] = field(
+        default_factory=list
+    )
+    module_calculation_calls: list[list[ElementId]] = field(default_factory=list)
+    module_silent_calculation_calls: list[list[ElementId]] = field(
+        default_factory=list
+    )
+    module_detail_path: str | None = None
 
     def alloc(self, snapshot: ElementTypeSnapshot) -> _FakeElement:
         eid = self._next_id
@@ -980,6 +994,27 @@ class FakeOperationsAdapter:
         self._state.delete_end_types_calls.append(list(eids))
 
 
+class FakeModuleAdapter:
+    """Records element-module calls; stores the mirror ModuleProperties as-is."""
+
+    def __init__(self, state: FakeState) -> None:
+        self._state = state
+
+    def apply_properties(
+        self, eids: list[ElementId], properties: "ModuleProperties"
+    ) -> None:
+        self._state.module_applied.append((list(eids), properties))
+
+    def start_calculation(self, cover_eids: list[ElementId]) -> None:
+        self._state.module_calculation_calls.append(list(cover_eids))
+
+    def start_calculation_silently(self, cover_eids: list[ElementId]) -> None:
+        self._state.module_silent_calculation_calls.append(list(cover_eids))
+
+    def set_detail_path(self, path: str) -> None:
+        self._state.module_detail_path = path
+
+
 class FakeBimAdapter:
     def __init__(self, state: FakeState) -> None:
         self._state = state
@@ -1036,6 +1071,7 @@ class FakeCadworkAdapter:
         "bim",
         "material",
         "operations",
+        "module",
     )
 
     def __init__(self) -> None:
@@ -1049,3 +1085,4 @@ class FakeCadworkAdapter:
         self.bim = FakeBimAdapter(self.state)
         self.material = FakeMaterialAdapter(self.state)
         self.operations = FakeOperationsAdapter(self.state)
+        self.module = FakeModuleAdapter(self.state)
