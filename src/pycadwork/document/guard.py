@@ -1,14 +1,13 @@
 """Guard a block of work to a 3dc (3D) cadwork document.
 
-Detail elements — and most model-mutating work — only make sense inside a 3D
-(``.3dc``) document. cwapi3d does not refuse such calls in, say, a 2D plan, so
-this module offers a fail-fast guard a caller wraps around the work::
+Most model-mutating work only makes sense inside a 3D (``.3dc``) document.
+cwapi3d does not refuse such calls in, say, a 2D plan, so this module offers a
+fail-fast guard a caller wraps around the work::
 
     from pycadwork.document import require_3dc_document
-    from pycadwork.detail import build_detail
 
     with require_3dc_document():
-        build_detail(definition)
+        ...  # create / edit elements here
 
 The predicate is intentionally simple — a 3dc document iff its file name is
 non-empty and ends ``.3dc`` (case-insensitive). cwapi3d's function is literally

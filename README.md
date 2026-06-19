@@ -189,7 +189,6 @@ stable types crossing the seam are the aliases and value objects in
 | `pycadwork.document`        | `Document` — the project handle and live-query element repository — and `ProjectInfo`, the project-metadata read/write view.                                                                                                             |
 | `pycadwork.element`         | Typed element wrappers — `Beam`, `Plate`, `Drilling`, `Node`, `Line`, `Surface`, `Opening`, `ConnectorAxis`, `AuxiliaryElement`, `CircularMep`, `RectangularMep` — plus the `Container` aggregate, the dispatch registry, and `from_id`. |
 | `pycadwork.element.cover`   | Cover objects (`Wall`, `Slab`, `Roof`), the grouping-driven `Aggregate` base, `Group`, the fluent `CoverBuilder`, and `discover_covers`.                                                                                                 |
-| `pycadwork.detail`          | Element-module details: the pure, serializable `DetailDefinition` / `MemberSpec` / `ModuleProperties` schema, the fluent `DetailBuilder`, semantic `roles`, the `load_definition` loader seam (native + foreign schemas), and the `build_detail` realizer. |
 | `pycadwork.geometry`        | Pure geometry value-types: `Point3D`, `Vector3D`, `Frame3D`, `Plane3D`, `Line3D`, `Segment3D`, `Loop`, `Face`, `Brep`, AABB/OBB, the R-tree spatial index, and creation specs.                                                           |
 | `pycadwork.connectivity`    | `find_connected` and `build_connection_graph` / `ConnectionGraph` — which elements touch or intersect, and the whole-model contact graph.                                                                                                |
 | `pycadwork.building`        | `StoreyAssigner` and the pure `StoreyStack` — classify elements into a building's storeys from their vertical extent (BMT building/storey structure).                                                                                    |
@@ -392,110 +391,6 @@ from pycadwork import discover_covers
 for cover in discover_covers():  # list[Aggregate] (Wall/Slab/Roof)
     print(cover, len(cover.children))
 ```
-
----
-
-## Element module details: author → serialize → share → realize
-
-A *detail* is a parametric timber-frame situation — a corner, a T-junction, a
-cross, an edge, an opening, a floor variant — that cadwork's element module
-expands into real framing (beams and panels) inside a wall/floor/roof. The
-`pycadwork.detail` package wraps that surface in two layers:
-
-* a **pure definition layer** — frozen, stdlib-only, JSON-serializable
-  dataclasses (`DetailDefinition`, `MemberSpec`, `ModuleProperties`). This is the
-  shareable *schema*: it holds no element ids and imports no cadwork, so it is
-  fully testable against the fake adapter;
-* a **realizer** — `build_detail`, the only part that touches the model. It
-  creates the members, anchors them on a host cover, applies each member's
-  element-module properties, and runs the calculation, all through the
-  version-isolation seam.
-
-### Author by type with the fluent builder
-
-Authoring is **type-driven**: `DetailBuilder().of_type(detail_type)` resolves the
-builder registered for that detail *type* and returns it. You then configure the
-detail *semantically* — the build-up as a structural **core** plus skin
-`Layer(side, index)`s, the framing as sections + spacing — and the template
-computes every member's *centric* placement (mid-planes across the wall, framing
-on the core centre plane). Adding a new authorable type is registering a new
-builder with `@register_detail_builder(...)`; `EDGE_DETAIL` ships today.
-
-```python
-from pycadwork import DetailBuilder, DetailType, RectSection, Point3D, Vector3D
-from pycadwork.detail import CORE, REFERENCE, OPPOSITE, Layer
-
-detail = (
-    DetailBuilder()
-    .of_type(DetailType.EDGE_DETAIL)
-    .named("AW260")
-    .set_origin(Point3D(0, 0, 0))
-    .set_frame(axis=Vector3D.unit_z(), ref_direction=Vector3D.unit_x())
-    .set_height(2500)
-    .set_panel("Zellulose", 200, layer=CORE, width=2420, color=7)            # the core
-    .set_panel("OSB", 15, layer=Layer(REFERENCE, 1), width=1250, color=10)   # interior skin
-    .set_panel("Weichfaser", 30, layer=Layer(OPPOSITE, 1), width=2782, color=6)  # exterior
-    .set_studs("Duo nsi I", RectSection(60, 200), spacing=625, color=3)
-    .set_plates("Duo nsi I", RectSection(60, 200), color=3)   # bottom + top plate
-    .set_binder("Duo nsi I", RectSection(60, 220), color=3)
-    .build()
-)
-```
-
-The template owns each member's `ModuleProperties` — the core is soldered, skins
-distribute, studs cut, plates carry their plate roles. The grouped sub-objects
-make illegal states unconstructable: `Distribution` accepts at most one of
-`distance` / `count` / `max_distance`; a `cutting_element` can't also be
-`not_cut_with_cutting_element`.
-
-### Serialize and share
-
-```python
-text = detail.to_json()                       # native "pycadwork.detail" schema
-same = DetailDefinition.from_json(text)        # round-trips exactly
-```
-
-### Realize end-to-end
-
-```python
-from pycadwork import build_detail
-
-result = build_detail(detail, detail_path=None, calculate=True, silent=True)
-result.member_ids   # the created beams/panels
-result.cover_ids    # the host cover(s) they were grouped onto (one per wall)
-result.calculated   # whether start_element_module_calculation ran
-```
-
-`silent=True` (the default) runs the calculation without blocking on a cadwork
-dialog. `detail_path` is opt-in — it sets cadwork's project-global detail
-directory only when supplied. Pass an existing cover to `run_calculation(...)`
-directly when driving a real model.
-
-### The loader seam — foreign schemas
-
-A definition shared from another tool need not be in pycadwork's JSON shape.
-`load_definition(raw)` reads the payload's `schema` / `schema_version` and
-dispatches to a registered `DefinitionLoader`; the native loader handles
-`"pycadwork.detail"`. To support a third-party schema, write a loader and
-register it — never edit the seam:
-
-```python
-from pycadwork import register_loader, DetailDefinition, MemberSpec, DetailType, CoverKind
-
-@register_loader
-class MyVendorLoader:
-    schema = "vendor.frames"
-    versions = ("1", "*")          # "*" is the any-version fallback
-    def load(self, raw):
-        members = (MemberSpec(kind="beam", section=..., points=..., role=...), ...)
-        return DetailDefinition(name=raw["id"], detail_type=..., cover_kind=...,
-                                members=members)
-```
-
-`pycadwork.detail.loaders._example_foreign` is a worked, registered example
-(`example.timberframe`) mapping foreign role/section/axis fields onto the
-internal definition — copy it as a starting point. An unknown `(schema, version)`
-raises `UnknownSchemaError`.
 
 ---
 

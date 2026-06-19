@@ -16,11 +16,6 @@ calls them in order, with comments and `print(...)` of the interesting result.
 | [`elements.py`](elements.py) | Create `Beam` / `Plate` / `Drilling`; read `attrs` & `geometry`; write dimensions back; `from_id` |
 | [`document_and_project.py`](document_and_project.py) | The `Document` repository (`elements`, `elements_of`, `get`, `covers`) and `ProjectInfo` metadata |
 | [`covers.py`](covers.py) | `Wall` / `Slab` / `Roof`, `children_of`, the `CoverBuilder`, and `discover_covers` |
-| [`details.py`](details.py) | Author a detail **by type** with `DetailBuilder().of_type(...)`; `to_json`/`from_json`; `load_definition` (native + foreign schema); realize with `build_detail` |
-| [`edge_detail.py`](edge_detail.py) | Author the **AW260** corner edge pair (two 260 mm framed walls) by type with `EdgeDetailBuilder` — the build-up as a structural core + skin `Layer`s, the framing as sections + spacing; the template computes every member's **centric** placement. The detail-catalog 3dc workflow: build, inspect the layer build-up, surface the corner-resolving cutting elements, and serialize. Applying it to modelled covers (`run_calculation`) is a separate step, not shown here. The bundled `data/aw260_edge.json` is the canonical reference |
-| [`registered_details.py`](registered_details.py) | The two registries: the **type-builder** registry (`of_type` / `builder_for`) and the named-definition **catalog** (`@register_detail`, `detail_names`, `get_detail`, `build_named_detail`) |
-| [`detail_reader.py`](detail_reader.py) | Read details back out of the model — the inverse of `build_detail`: `read_detail` reconstructs one cover's `DetailDefinition` (sections, placement, properties), `discover_details` scans them all; `detail_type` is an override (not readable) |
-| [`read_selection_in_cadwork.py`](read_selection_in_cadwork.py) | **Run inside cadwork.** Read the active *selection* (selected walls/floors/roofs) and write one detail JSON per cover to `OUTPUT_DIR` — the practical way to capture a real, hand-modelled detail. Not in the fake suite (live selection + file output); its helpers are tested separately |
 | [`containers_and_mep.py`](containers_and_mep.py) | `Container.create_from_standard`, `parent_container`, `discover_containers`; `CircularMep` / `RectangularMep` |
 | [`connectivity.py`](connectivity.py) | `find_connected`, `build_connection_graph`, components, and a custom contact predicate |
 | [`raycast.py`](raycast.py) | `cast_ray`: which elements a ray hits (nearest-first `RayCastResult` / `RayHit`), the `radius` thickness, and `among=` |
@@ -44,12 +39,6 @@ flagged as a wall, a building's BMT storeys. Those steps go through the
 version-isolation seam (`pycadwork.cadwork_adapter.cadwork`) and are clearly
 commented as *setup that mimics the cadwork UI*. They are not part of normal
 day-to-day pycadwork usage.
-
-One example, [`read_selection_in_cadwork.py`](read_selection_in_cadwork.py), is
-the opposite: it is meant to run **inside cadwork on a live model**, reading the
-elements you have selected and writing real detail JSON to disk. It is not in the
-auto-run `MODULES` list (it would need a live selection and would write files),
-so its read/serialize helpers are covered by a dedicated test instead.
 
 ## Verified in CI
 
