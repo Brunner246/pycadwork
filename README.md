@@ -411,36 +411,42 @@ expands into real framing (beams and panels) inside a wall/floor/roof. The
   element-module properties, and runs the calculation, all through the
   version-isolation seam.
 
-### Author with the fluent builder
+### Author by type with the fluent builder
 
-Members carry **roles** — named presets (`bottom_plate`, `top_plate`, `stud`,
-`sheathing`, `cutting_element`, …) that resolve to `ModuleProperties` — so you
-describe intent, not ~30 loose flags. The builder validates that the
-`DetailType` and `CoverKind` are coherent (a `floor_*` detail needs a slab kind,
-etc.) when you call `build()`.
+Authoring is **type-driven**: `DetailBuilder().of_type(detail_type)` resolves the
+builder registered for that detail *type* and returns it. You then configure the
+detail *semantically* — the build-up as a structural **core** plus skin
+`Layer(side, index)`s, the framing as sections + spacing — and the template
+computes every member's *centric* placement (mid-planes across the wall, framing
+on the core centre plane). Adding a new authorable type is registering a new
+builder with `@register_detail_builder(...)`; `EDGE_DETAIL` ships today.
 
 ```python
-from pycadwork import DetailBuilder, DetailType, CoverKind, RectSection, PanelSection, AxisPoints, Point3D
+from pycadwork import DetailBuilder, DetailType, RectSection, Point3D, Vector3D
+from pycadwork.detail import CORE, REFERENCE, OPPOSITE, Layer
 
 detail = (
     DetailBuilder()
-    .named("framed-wall-corner")
-    .of_type(DetailType.CORNER_DETAIL)
-    .cover(CoverKind.FRAMED_WALL)
-    .add_beam(RectSection(60, 120),
-              AxisPoints(Point3D(0, 0, 0), Point3D(0, 0, 2500), Point3D(1, 0, 0)),
-              role="stud")
-    .add_panel(PanelSection(600, 15),
-               AxisPoints(Point3D(0, 0, 0), Point3D(2400, 0, 0), Point3D(0, 0, 1)),
-               role="sheathing")
+    .of_type(DetailType.EDGE_DETAIL)
+    .named("AW260")
+    .set_origin(Point3D(0, 0, 0))
+    .set_frame(axis=Vector3D.unit_z(), ref_direction=Vector3D.unit_x())
+    .set_height(2500)
+    .set_panel("Zellulose", 200, layer=CORE, width=2420, color=7)            # the core
+    .set_panel("OSB", 15, layer=Layer(REFERENCE, 1), width=1250, color=10)   # interior skin
+    .set_panel("Weichfaser", 30, layer=Layer(OPPOSITE, 1), width=2782, color=6)  # exterior
+    .set_studs("Duo nsi I", RectSection(60, 200), spacing=625, color=3)
+    .set_plates("Duo nsi I", RectSection(60, 200), color=3)   # bottom + top plate
+    .set_binder("Duo nsi I", RectSection(60, 220), color=3)
     .build()
 )
 ```
 
-A member can also carry an explicit `ModuleProperties` that overrides its role.
-The grouped sub-objects make illegal states unconstructable — `Distribution`
-accepts at most one of `distance` / `count` / `max_distance`; a `cutting_element`
-can't also be `not_cut_with_cutting_element`.
+The template owns each member's `ModuleProperties` — the core is soldered, skins
+distribute, studs cut, plates carry their plate roles. The grouped sub-objects
+make illegal states unconstructable: `Distribution` accepts at most one of
+`distance` / `count` / `max_distance`; a `cutting_element` can't also be
+`not_cut_with_cutting_element`.
 
 ### Serialize and share
 
@@ -456,7 +462,7 @@ from pycadwork import build_detail
 
 result = build_detail(detail, detail_path=None, calculate=True, silent=True)
 result.member_ids   # the created beams/panels
-result.cover_id     # the host cover they were grouped onto
+result.cover_ids    # the host cover(s) they were grouped onto (one per wall)
 result.calculated   # whether start_element_module_calculation ran
 ```
 
@@ -474,14 +480,16 @@ dispatches to a registered `DefinitionLoader`; the native loader handles
 register it — never edit the seam:
 
 ```python
-from pycadwork import register_loader, DetailBuilder, DetailType, CoverKind
+from pycadwork import register_loader, DetailDefinition, MemberSpec, DetailType, CoverKind
 
 @register_loader
 class MyVendorLoader:
     schema = "vendor.frames"
     versions = ("1", "*")          # "*" is the any-version fallback
     def load(self, raw):
-        return DetailBuilder().named(raw["id"]).of_type(...).cover(...)...build()
+        members = (MemberSpec(kind="beam", section=..., points=..., role=...), ...)
+        return DetailDefinition(name=raw["id"], detail_type=..., cover_kind=...,
+                                members=members)
 ```
 
 `pycadwork.detail.loaders._example_foreign` is a worked, registered example

@@ -11,6 +11,10 @@ Adding a new attribute is a three-step recipe:
   1. Add the get/set pair on ``AttributesAdapter`` in ``cadwork_adapter/_attributes.py``.
   2. Mirror it on ``FakeAttributesAdapter`` in ``tests/_fakes/cadwork_adapter.py``.
   3. Add the property (and ``@<name>.setter``) here.
+
+``color`` is the one exception: in cwapi3d it is a *visualization* concern, not an
+attribute, so its property delegates to the ``cadwork.visualization`` seam (and the
+get/set pair lives on ``VisualizationAdapter``) rather than ``cadwork.attributes``.
 """
 
 from __future__ import annotations
@@ -62,6 +66,16 @@ class Attributes:
     def comment(self, comment: str) -> None:
         cadwork.attributes.set_comment([self._id], comment)
 
+    @property
+    def wall_situation(self) -> str:
+        """Element-module wall situation, e.g. ``'AW260>AW260#1A'``.
+
+        The assembly key cadwork stamps on the members a detail calculation
+        produces — detail members are linked by sharing this string, not by the
+        ``group``/``subgroup`` used for ordinary covers. Read-only in cwapi3d.
+        """
+        return cadwork.attributes.get_wall_situation(self._id)
+
     # ---- material / sku / numbers ----
 
     @property
@@ -71,6 +85,18 @@ class Attributes:
     @material_name.setter
     def material_name(self, name: str) -> None:
         cadwork.attributes.set_material_name([self._id], name)
+
+    # ---- visual state ----
+    # Color is a visualization_controller concern, not an attribute, so it
+    # delegates to the cadwork.visualization seam (see module docstring).
+
+    @property
+    def color(self) -> int:
+        return cadwork.visualization.get_color(self._id)
+
+    @color.setter
+    def color(self, color_id: int) -> None:
+        cadwork.visualization.set_color([self._id], color_id)
 
     @property
     def sku(self) -> str:

@@ -25,6 +25,11 @@ class ProjectAdapter:
 
         return utility_controller.create_new_guid()
 
+    def get_3d_file_name(self) -> str:
+        import utility_controller
+
+        return utility_controller.get_3d_file_name()
+
     # ---- metadata (str) ----
 
     def get_project_name(self) -> str:

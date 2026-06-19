@@ -16,9 +16,10 @@ Modules:
 * :mod:`examples.elements`             — Beam / Plate / Drilling: create, read, write-back
 * :mod:`examples.document_and_project` — the Document repository and ProjectInfo
 * :mod:`examples.covers`               — Wall / Slab / Roof, CoverBuilder, discover_covers
-* :mod:`examples.details`              — author / serialize / load / realize element-module details
+* :mod:`examples.details`              — author by type / serialize / load / realize a detail
 * :mod:`examples.containers_and_mep`   — Container containment and MEP runs
 * :mod:`examples.connectivity`         — find_connected and the connection graph
+* :mod:`examples.raycast`              — cast_ray: which elements a ray hits, nearest-first
 * :mod:`examples.building_storeys`     — StoreyStack and StoreyAssigner
 * :mod:`examples.utilities`            — DisplayRefreshScope, suppressed_display, batch_apply
 * :mod:`examples.decorators`           — pure-Python class decorators (auto_repr, auto_eq)
@@ -47,6 +48,7 @@ MODULES: tuple[str, ...] = (
     "details",
     "containers_and_mep",
     "connectivity",
+    "raycast",
     "building_storeys",
     "utilities",
     "decorators",

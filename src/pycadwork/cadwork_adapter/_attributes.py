@@ -51,6 +51,17 @@ class AttributesAdapter:
 
         return attribute_controller.get_comment(eid)
 
+    # ---- element-module wall situation ----
+    # The wall situation (e.g. ``'AW260>AW260#1A'``) is the assembly key cadwork
+    # stamps on the members an element-module detail produces. Unlike ordinary
+    # cover membership (group/subgroup), detail members are linked by sharing
+    # this string. Read-only in cwapi3d — it is calculation output, not authored.
+
+    def get_wall_situation(self, eid: ElementId) -> str:
+        import attribute_controller
+
+        return str(attribute_controller.get_wall_situation(eid))
+
     def set_comment(self, eids: list[ElementId], comment: str) -> None:
         import attribute_controller
 
@@ -70,8 +81,11 @@ class AttributesAdapter:
         import material_controller
 
         mid = material_controller.get_material_id(name)
-        for eid in eids:
-            attribute_controller.set_element_material(eid, mid)
+        # cwapi3d's set_element_material takes a *sequence* of ids + one material
+        # id; passing a scalar eid (the old per-element loop) raises a TypeError
+        # in live cadwork. Apply to the whole list in one call, like the other
+        # setters here.
+        attribute_controller.set_element_material(list(eids), mid)
 
     def get_sku(self, eid: ElementId) -> str:
         import attribute_controller

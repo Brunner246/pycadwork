@@ -18,6 +18,7 @@ from pycadwork.cadwork_adapter._material import MaterialAdapter
 from pycadwork.cadwork_adapter._module import ModuleAdapter
 from pycadwork.cadwork_adapter._operations import OperationsAdapter
 from pycadwork.cadwork_adapter._project import ProjectAdapter
+from pycadwork.cadwork_adapter._visualization import VisualizationAdapter
 
 
 class CadworkAdapter:
@@ -34,6 +35,7 @@ class CadworkAdapter:
         "material",
         "operations",
         "module",
+        "visualization",
     )
 
     def __init__(self) -> None:
@@ -47,3 +49,4 @@ class CadworkAdapter:
         self.material: MaterialAdapter = MaterialAdapter()
         self.operations: OperationsAdapter = OperationsAdapter()
         self.module: ModuleAdapter = ModuleAdapter()
+        self.visualization: VisualizationAdapter = VisualizationAdapter()

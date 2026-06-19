@@ -29,8 +29,6 @@ from pycadwork.geometry import (
     OrientedBoundingBox,
     Point3D,
     Vector3D,
-)
-from pycadwork.geometry._facets import (
     aabb_from_points,
     brep_from_facet_list,
     point3d_from_tuple,
