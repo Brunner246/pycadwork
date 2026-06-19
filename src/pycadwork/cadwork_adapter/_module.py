@@ -150,9 +150,7 @@ class ModuleAdapter:
 
         props = cadwork.element_module_properties()
         self._apply_to(props, properties)
-        element_controller.set_element_module_properties_for_elements(
-            list(eids), props
-        )
+        element_controller.set_element_module_properties_for_elements(list(eids), props)
 
     def start_calculation(self, cover_eids: list[ElementId]) -> None:
         import element_controller
