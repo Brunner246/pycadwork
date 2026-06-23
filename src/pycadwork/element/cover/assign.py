@@ -5,6 +5,14 @@ which cover each element belongs to by bounding-box overlap and attach it via
 the grouping link. A spatial index prunes the candidate covers per element
 (broad phase); an exact OBB-OBB test confirms real overlap (narrow phase); when
 several covers overlap, the one with the largest enclosing-AABB overlap wins.
+
+The winner is always attached, but an assignment that **can't be made surely**
+is **marked** in an indexed ``user_attribute`` (``mark_attribute_index`` /
+``mark_value``) so a human can review it — mirroring how
+:class:`pycadwork.building.StoreyAssigner` flags elements that straddle a storey
+plane. An assignment is uncertain when the element overlaps more than one cover,
+or when the winning cover only overlaps once the boxes are grown by ``tolerance``
+(a grazing/soft match). Elements that overlap no cover at all are skipped.
 """
 
 from __future__ import annotations
@@ -12,6 +20,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 
+from pycadwork.cadwork_adapter import cadwork
+from pycadwork.cadwork_adapter.types import ElementId
 from pycadwork.element import Element
 from pycadwork.element.cover.aggregate import Aggregate
 from pycadwork.element.cover.discover import discover_covers
@@ -26,13 +36,22 @@ from pycadwork.geometry.spatial_index import (
 )
 from pycadwork.utility import suppressed_display
 
+# Indexed user_attribute slot that carries the uncertain marker by default.
+_DEFAULT_MARK_ATTRIBUTE_INDEX = 1
+
 
 @dataclass(frozen=True, slots=True)
 class CoverAssignment:
-    """An inspectable record of one element attached to a cover."""
+    """An inspectable record of one element attached to a cover.
+
+    ``uncertain`` is ``True`` when the assignment couldn't be made surely — the
+    element overlapped more than one cover, or the winning cover matched only
+    after the boxes were grown by ``tolerance``.
+    """
 
     element: Element
     cover: Aggregate
+    uncertain: bool
 
 
 def _aabb_overlap_volume(a: AxisAlignedBoundingBox, b: AxisAlignedBoundingBox) -> float:
@@ -53,17 +72,23 @@ class CoverAssigner:
         covers: Iterable[Aggregate] | None = None,
         *,
         tolerance: float = 0.0,
+        mark_attribute_index: int = _DEFAULT_MARK_ATTRIBUTE_INDEX,
+        mark_value: str = "uncertain-cover",
     ) -> None:
         self._covers = None if covers is None else list(covers)
         self._tolerance = tolerance
+        self._mark_index = mark_attribute_index
+        self._mark_value = mark_value
 
     @suppressed_display
     def assign(self, elements: Iterable[Element]) -> list[CoverAssignment]:
         """Attach each loose element to its best-overlapping cover.
 
         Elements that are themselves covers/aggregates, and elements with no
-        overlapping cover, are skipped. Returns one :class:`CoverAssignment`
-        per attached element as a report.
+        overlapping cover, are skipped. Elements whose assignment is uncertain
+        (overlapping several covers, or matched only within ``tolerance``) are
+        marked in the configured ``user_attribute``. Returns one
+        :class:`CoverAssignment` per attached element as a report.
         """
         covers = self._covers if self._covers is not None else discover_covers()
 
@@ -76,16 +101,24 @@ class CoverAssigner:
         index = RTreeIndex3D(items)
 
         results: list[CoverAssignment] = []
+        to_mark: list[ElementId] = []
         for element in elements:
             if isinstance(element, Aggregate):
                 continue
             region = element.geometry.bounding_region
 
-            best = self._best_cover(element, region, index, by_index)
+            best, uncertain = self._best_cover(element, region, index, by_index)
             if best is None:
                 continue
             best.add_child(element)
-            results.append(CoverAssignment(element, best))
+            if uncertain:
+                to_mark.append(element.id)
+            results.append(CoverAssignment(element, best, uncertain))
+
+        if to_mark:
+            cadwork.attributes.set_user_attribute(
+                to_mark, self._mark_index, self._mark_value
+            )
 
         return results
 
@@ -97,22 +130,41 @@ class CoverAssigner:
         region: BoundingRegion3D,
         index: RTreeIndex3D,
         by_index: dict[int, tuple[Aggregate, BoundingRegion3D]],
-    ) -> Aggregate | None:
+    ) -> tuple[Aggregate | None, bool]:
+        """Pick the best-overlapping cover and whether the pick is uncertain.
+
+        Each candidate is tested at two levels: the tight (un-inflated) cover
+        OBB, and the cover OBB grown by ``tolerance``. A cover overlaps when it
+        passes the inflated test; the winner is a soft match when it passes only
+        the inflated test, not the tight one. Returns ``(cover, uncertain)`` —
+        uncertain when more than one cover overlapped, or the winner is a soft
+        match. ``(None, False)`` when nothing overlaps.
+        """
         element_obb = as_oriented(region)
         element_aabb = as_axis_aligned(region)
         query = region.expanded(self._tolerance) if self._tolerance > 0.0 else region
 
         best_cover: Aggregate | None = None
         best_overlap = -1.0
+        best_is_tight = False
+        overlapping = 0
         for idx in index.intersection(query):
             cover, cover_region = by_index[idx]
             cover_obb = as_oriented(cover_region)
-            if self._tolerance > 0.0:
-                cover_obb = cover_obb.expanded(self._tolerance)
-            if not cover_obb.intersects(element_obb):
+            tight_hit = cover_obb.intersects(element_obb)
+            inflated_hit = (
+                cover_obb.expanded(self._tolerance).intersects(element_obb)
+                if self._tolerance > 0.0
+                else tight_hit
+            )
+            if not inflated_hit:
                 continue
+            overlapping += 1
             overlap = _aabb_overlap_volume(as_axis_aligned(cover_region), element_aabb)
             if overlap > best_overlap:
                 best_overlap = overlap
                 best_cover = cover
-        return best_cover
+                best_is_tight = tight_hit
+        if best_cover is None:
+            return None, False
+        return best_cover, (overlapping > 1 or not best_is_tight)

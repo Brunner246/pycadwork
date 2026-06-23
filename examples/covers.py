@@ -176,6 +176,7 @@ def demo_assign_loose_elements() -> None:
             type(assignment.element).__name__,
             "to group",
             assignment.cover.id,
+            "(uncertain)" if assignment.uncertain else "",
         )
     print("stud group now =", stud.attrs.group)  # "WallF"
 

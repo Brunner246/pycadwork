@@ -22,7 +22,9 @@ file simply ``import pycadwork`` — there is **no** ``sys.path`` manipulation.
 try:
     import pycadwork  # noqa: F401  (import-only check that the runtime install is in place)
     from pycadwork import Document
-except ImportError as exc:  # pragma: no cover - guidance for an un-provisioned interpreter
+except (
+    ImportError
+) as exc:  # pragma: no cover - guidance for an un-provisioned interpreter
     raise ImportError(
         "pycadwork is not importable from cadwork's interpreter. From the "
         "pycadwork checkout, run scripts\\Install-PycadworkRuntime.ps1 to link "
