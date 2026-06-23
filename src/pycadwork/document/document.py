@@ -23,6 +23,7 @@ from collections.abc import Iterable
 from typing import Any, TypeVar
 
 from pycadwork.cadwork_adapter import cadwork
+from pycadwork.document.guard import is_3dc_document
 from pycadwork.document.project import ProjectInfo
 from pycadwork.element.base import Element
 from pycadwork.element.cover.aggregate import Aggregate
@@ -47,6 +48,15 @@ class Document:
     def guid(self) -> str:
         """The project GUID — convenience delegate to :attr:`project`."""
         return self.project.guid
+
+    @property
+    def file_name_3dc(self) -> str:
+        """The active 3d document's file name (empty if unsaved / unavailable)."""
+        return cadwork.project.get_3d_file_name()
+
+    def is_3dc(self) -> bool:
+        """True iff the active document is a 3dc model. See :func:`is_3dc_document`."""
+        return is_3dc_document()
 
     # ---- repository ----
 

@@ -17,7 +17,7 @@ from pycadwork.building import (
     StoreyName,
     StoreyStack,
 )
-from pycadwork.cadwork_adapter.types import CoverKind, GroupingMode
+from pycadwork.cadwork_adapter.types import CoverKind, DetailType, GroupingMode
 from pycadwork.connectivity import (
     ConnectionGraph,
     build_connection_graph,
@@ -84,6 +84,7 @@ from pycadwork.ops import (
     cutting_bodies,
     extract_cutting_bodies,
 )
+from pycadwork.raycast import RayCastResult, RayHit, cast_ray
 from pycadwork.persistence import (
     AttributeRecord,
     BuildingRecord,
@@ -169,6 +170,7 @@ __all__ = [
     "CoverRecord",
     "CrossSection",
     "CuttingBodyExtraction",
+    "DetailType",
     "Diameter",
     "Dimension",
     "DisplayRefreshScope",
@@ -207,6 +209,8 @@ __all__ = [
     "ProjectRecord",
     "RTreeIndex3D",
     "Radius",
+    "RayCastResult",
+    "RayHit",
     "RectSection",
     "RectangularMep",
     "Roof",
@@ -243,6 +247,7 @@ __all__ = [
     "by_material",
     "by_storey",
     "by_subgroup",
+    "cast_ray",
     "cutting_bodies",
     "cutting_list",
     "deprecated",

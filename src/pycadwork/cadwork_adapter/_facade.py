@@ -15,8 +15,10 @@ from pycadwork.cadwork_adapter._elements import ElementsAdapter
 from pycadwork.cadwork_adapter._geometry import GeometryAdapter
 from pycadwork.cadwork_adapter._grouping import GroupingAdapter
 from pycadwork.cadwork_adapter._material import MaterialAdapter
+from pycadwork.cadwork_adapter._module import ModuleAdapter
 from pycadwork.cadwork_adapter._operations import OperationsAdapter
 from pycadwork.cadwork_adapter._project import ProjectAdapter
+from pycadwork.cadwork_adapter._visualization import VisualizationAdapter
 
 
 class CadworkAdapter:
@@ -32,6 +34,8 @@ class CadworkAdapter:
         "bim",
         "material",
         "operations",
+        "module",
+        "visualization",
     )
 
     def __init__(self) -> None:
@@ -44,3 +48,5 @@ class CadworkAdapter:
         self.bim: BimAdapter = BimAdapter()
         self.material: MaterialAdapter = MaterialAdapter()
         self.operations: OperationsAdapter = OperationsAdapter()
+        self.module: ModuleAdapter = ModuleAdapter()
+        self.visualization: VisualizationAdapter = VisualizationAdapter()

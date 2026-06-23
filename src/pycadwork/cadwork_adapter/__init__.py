@@ -14,6 +14,7 @@ from __future__ import annotations
 from pycadwork.cadwork_adapter._facade import CadworkAdapter
 from pycadwork.cadwork_adapter.types import (
     CoverKind,
+    DetailType,
     ElementId,
     ElementTypeSnapshot,
     FacetListLike,
@@ -30,6 +31,7 @@ cadwork: CadworkAdapter = CadworkAdapter()
 __all__ = [
     "CadworkAdapter",
     "CoverKind",
+    "DetailType",
     "ElementId",
     "ElementTypeSnapshot",
     "FacetListLike",

@@ -54,6 +54,34 @@ ROOF_KINDS: frozenset[CoverKind] = frozenset(
 )
 
 
+class DetailType(Enum):
+    """A timber-frame *detail situation* — the stable mirror of cadwork's
+    ``element_module_detail`` enum.
+
+    A detail describes *where* in a wall/floor/roof a parametric framing
+    situation applies (a corner, a T-junction, an opening, …). The values are
+    the cadwork enum member names so a definition serialized here round-trips to
+    the live binding without a lookup table; the seam never imports the real
+    enum (it is selected indirectly through the saved detail file and
+    ``set_element_detail_path``). The exact member set is confirmed against the
+    live binding in the manual in-cadwork smoke test.
+    """
+
+    NO_DETAIL = "no_detail"
+    T_DETAIL = "t_detail"
+    CORNER_DETAIL = "corner_detail"
+    CROSS_DETAIL = "cross_detail"
+    EDGE_DETAIL = "edge_detail"
+    END_DETAIL = "end_detail"
+    OPENING_DETAIL = "opening_detail"
+    FLOOR_DETAIL = "floor_detail"
+    FLOOR_CORNER_DETAIL = "floor_corner_detail"
+    FLOOR_T_DETAIL = "floor_t_detail"
+    FLOOR_CROSS_DETAIL = "floor_cross_detail"
+    FLOOR_EDGE_DETAIL = "floor_edge_detail"
+    ROOF_DETAIL = "roof_detail"
+
+
 @dataclass(frozen=True, slots=True)
 class ElementTypeSnapshot:
     """A frozen view of a cadwork element's type predicates.
@@ -153,6 +181,7 @@ class InternalPolygonsLike(Protocol):
 
 __all__ = [
     "CoverKind",
+    "DetailType",
     "ElementId",
     "ElementTypeSnapshot",
     "FacetListLike",

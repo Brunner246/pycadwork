@@ -165,6 +165,17 @@ def run() -> None:
     demo_from_sql_snapshot()
     demo_csv()
 
+    # from pathlib import Path
+    #
+    # dimensions = (by_material(),)
+    # rows = cutting_list(ModelReader().read(), dimensions=dimensions)
+    #
+    # out_path = Path.home() / "Downloads" / "cutting_list.csv"
+    # with out_path.open("w", newline="", encoding="utf-8") as stream:
+    #     write_parts_csv(rows, stream, dimensions=dimensions)
+    #
+    # print(f"wrote {len(rows)} rows -> {out_path}")
+
 
 if __name__ == "__main__":
     run()

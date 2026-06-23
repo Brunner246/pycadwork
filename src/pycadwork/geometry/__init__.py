@@ -1,3 +1,8 @@
+from pycadwork.geometry._facets import (
+    aabb_from_points,
+    brep_from_facet_list,
+    point3d_from_tuple,
+)
 from pycadwork.geometry.aabb import AxisAlignedBoundingBox
 from pycadwork.geometry.brep import Brep
 from pycadwork.geometry.face import Face
@@ -42,4 +47,7 @@ __all__ = [
     "SpatialIndex3D",
     "SpatialQuery3D",
     "Vector3D",
+    "aabb_from_points",
+    "brep_from_facet_list",
+    "point3d_from_tuple",
 ]

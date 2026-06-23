@@ -18,6 +18,7 @@ calls them in order, with comments and `print(...)` of the interesting result.
 | [`covers.py`](covers.py) | `Wall` / `Slab` / `Roof`, `children_of`, the `CoverBuilder`, and `discover_covers` |
 | [`containers_and_mep.py`](containers_and_mep.py) | `Container.create_from_standard`, `parent_container`, `discover_containers`; `CircularMep` / `RectangularMep` |
 | [`connectivity.py`](connectivity.py) | `find_connected`, `build_connection_graph`, components, and a custom contact predicate |
+| [`raycast.py`](raycast.py) | `cast_ray`: which elements a ray hits (nearest-first `RayCastResult` / `RayHit`), the `radius` thickness, and `among=` |
 | [`building_storeys.py`](building_storeys.py) | The pure `StoreyStack` classifier and the model-driven `StoreyAssigner` |
 | [`utilities.py`](utilities.py) | `DisplayRefreshScope` (context, `@auto_recreate`, `@DisplayRefreshScope()`, `recreate_after`), `suppressed_display`, and `batch_apply` |
 | [`decorators.py`](decorators.py) | The pure-Python class decorators: `auto_repr` (bare + fields), `auto_eq` / `auto_hash`, and `deprecated` |

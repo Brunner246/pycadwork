@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from pycadwork.cadwork_adapter._helpers import to_cadwork_point
-from pycadwork.cadwork_adapter.types import ElementId, ElementTypeSnapshot
+from pycadwork.cadwork_adapter._helpers import to_cadwork_point, to_tuple
+from pycadwork.cadwork_adapter.types import ElementId, ElementTypeSnapshot, PointTuple
 from pycadwork.geometry.point3d import Point3D
 from pycadwork.geometry.specs import (
     AxisFrame,
@@ -318,4 +318,32 @@ class ElementsAdapter:
         return [
             ElementId(e)
             for e in element_controller.get_active_identifiable_element_ids()
+        ]
+
+    # ---- ray casting ----
+
+    def cast_ray(
+        self, eids: list[ElementId], start: Point3D, end: Point3D, radius: float
+    ) -> list[tuple[ElementId, list[PointTuple]]]:
+        """Cast a (thick) ray from ``start`` to ``end`` against ``eids``.
+
+        Returns one ``(element_id, hit_points)`` pair per element the ray
+        pierces. Only stable seam types cross out: the cwapi3d ``hit_result``
+        and its ``point_3d`` vertices are consumed and converted here.
+        """
+        import cadwork  # registers the point_3d / hit_result pybind types
+        import element_controller
+
+        result = element_controller.cast_ray_and_get_element_intersections(
+            list(eids),
+            to_cadwork_point(cadwork, start),
+            to_cadwork_point(cadwork, end),
+            radius,
+        )
+        return [
+            (
+                ElementId(int(hit)),
+                [to_tuple(p) for p in result.get_hit_vertices_by_element(hit)],
+            )
+            for hit in result.get_hit_element_ids()
         ]

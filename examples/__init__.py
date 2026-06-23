@@ -18,6 +18,7 @@ Modules:
 * :mod:`examples.covers`               — Wall / Slab / Roof, CoverBuilder, discover_covers
 * :mod:`examples.containers_and_mep`   — Container containment and MEP runs
 * :mod:`examples.connectivity`         — find_connected and the connection graph
+* :mod:`examples.raycast`              — cast_ray: which elements a ray hits, nearest-first
 * :mod:`examples.building_storeys`     — StoreyStack and StoreyAssigner
 * :mod:`examples.utilities`            — DisplayRefreshScope, suppressed_display, batch_apply
 * :mod:`examples.decorators`           — pure-Python class decorators (auto_repr, auto_eq)
@@ -45,6 +46,7 @@ MODULES: tuple[str, ...] = (
     "covers",
     "containers_and_mep",
     "connectivity",
+    "raycast",
     "building_storeys",
     "utilities",
     "decorators",

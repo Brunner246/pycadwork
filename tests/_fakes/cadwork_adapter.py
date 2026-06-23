@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field, replace
+from typing import TYPE_CHECKING
 
 from pycadwork.cadwork_adapter.types import (
     CoverKind,
@@ -34,6 +35,9 @@ from pycadwork.geometry.specs import (
     RectSection,
     Segment,
 )
+
+if TYPE_CHECKING:
+    from pycadwork.detail.properties import ModuleProperties
 
 # ---- vertex / facet view types ----
 
@@ -116,6 +120,44 @@ def _tup(p: Point3D) -> PointTuple:
     return (p.x, p.y, p.z)
 
 
+def _segment_aabb_hits(
+    start: PointTuple, end: PointTuple, box_min: PointTuple, box_max: PointTuple
+) -> list[PointTuple]:
+    """Entry/exit points where the segment ``start``->``end`` pierces an AABB.
+
+    Slab method: clip the segment parameter ``t`` to the box on each axis.
+    Returns ``[]`` on a miss, ``[entry]`` for a grazing single touch, else
+    ``[entry, exit]`` with ``t`` clamped to ``[0, 1]``.
+    """
+    direction = _sub(end, start)
+    t_near, t_far = 0.0, 1.0
+    for axis in range(3):
+        o, d = start[axis], direction[axis]
+        lo, hi = box_min[axis], box_max[axis]
+        if abs(d) < 1e-12:
+            if o < lo or o > hi:
+                return []  # parallel to slab and outside it
+            continue
+        t1, t2 = (lo - o) / d, (hi - o) / d
+        if t1 > t2:
+            t1, t2 = t2, t1
+        t_near = max(t_near, t1)
+        t_far = min(t_far, t2)
+        if t_near > t_far:
+            return []
+
+    def _at(t: float) -> PointTuple:
+        return (
+            start[0] + direction[0] * t,
+            start[1] + direction[1] * t,
+            start[2] + direction[2] * t,
+        )
+
+    if abs(t_far - t_near) < 1e-12:
+        return [_at(t_near)]
+    return [_at(t_near), _at(t_far)]
+
+
 def _frame_from_three_points(
     el: "_FakeElement", p1: Point3D, p2: Point3D, p3: Point3D
 ) -> None:
@@ -139,6 +181,7 @@ class _FakeElement:
     name: str = ""
     group: str = ""
     subgroup: str = ""
+    wall_situation: str = ""
     comment: str = ""
     material: str = ""
     sku: str = ""
@@ -147,6 +190,7 @@ class _FakeElement:
     cadwork_guid: str = ""
     additional_data: str = ""
     assembly_number: str = ""
+    color: int = 0
     building: str = ""
     storey: str = ""
     container_parent: ElementId = 0
@@ -199,6 +243,8 @@ class FakeState:
     project_user_attributes: dict[int, str] = field(default_factory=dict)
     project_user_attribute_names: dict[int, str] = field(default_factory=dict)
     project_data: dict[str, str] = field(default_factory=dict)
+    # Active 3d document file name; defaults to a valid 3dc doc so detail tests pass.
+    file_name_3dc: str = "model.3dc"
     _next_project_guid: int = 1
     # ---- material catalog (name <-> id, plus the per-material snapshot) ----
     material_by_id: dict[MaterialId, MaterialSnapshot] = field(default_factory=dict)
@@ -230,6 +276,28 @@ class FakeState:
     pending_cutting_bodies: dict[ElementId, int] = field(default_factory=dict)
     # split-off piece ids the next subtract_elements call returns (pop-all)
     pending_subtract_pieces: list[ElementId] = field(default_factory=list)
+    # ---- element-module observables ----
+    # Records the *mirror* ModuleProperties applied (never a cadwork object).
+    module_applied: list[tuple[list[ElementId], "ModuleProperties"]] = field(
+        default_factory=list
+    )
+    # Per-element mirror of the last properties applied, so a reader can read
+    # them straight back (the read inverse of apply_properties).
+    module_properties: dict[ElementId, "ModuleProperties"] = field(default_factory=dict)
+    module_calculation_calls: list[list[ElementId]] = field(default_factory=list)
+    module_silent_calculation_calls: list[list[ElementId]] = field(default_factory=list)
+    module_detail_path: str | None = None
+    # Situation calls: (cover, add, remove) per manual situation write.
+    module_parts_situation: list[tuple[ElementId, list[ElementId], list[ElementId]]] = (
+        field(default_factory=list)
+    )
+    module_rough_volume_situation: list[
+        tuple[ElementId, list[ElementId], list[ElementId]]
+    ] = field(default_factory=list)
+    module_auto_parts_situation: list[list[ElementId]] = field(default_factory=list)
+    module_auto_rough_volume_situation: list[list[ElementId]] = field(
+        default_factory=list
+    )
 
     def alloc(self, snapshot: ElementTypeSnapshot) -> _FakeElement:
         eid = self._next_id
@@ -471,6 +539,32 @@ class FakeElementsAdapter:
         # No selection state in the fake — same as "all".
         return list(self._state.elements.keys())
 
+    # ---- ray casting ----
+
+    def cast_ray(
+        self, eids: list[ElementId], start: Point3D, end: Point3D, radius: float
+    ) -> list[tuple[ElementId, list[PointTuple]]]:
+        # Mirror the live call deterministically: intersect the segment against
+        # each element's world-axis box (the same box get_element_vertices
+        # reports), grown by ``radius`` on every axis.
+        s, e = _tup(start), _tup(end)
+        out: list[tuple[ElementId, list[PointTuple]]] = []
+        for eid in eids:
+            el = self._state.elements.get(eid)
+            if el is None:
+                continue
+            x, y, z = el.p1
+            box_min = (x - radius, y - radius, z - radius)
+            box_max = (
+                x + el.length + radius,
+                y + el.width + radius,
+                z + el.height + radius,
+            )
+            hits = _segment_aabb_hits(s, e, box_min, box_max)
+            if hits:
+                out.append((ElementId(eid), hits))
+        return out
+
 
 class FakeAttributesAdapter:
     def __init__(self, state: FakeState) -> None:
@@ -505,6 +599,16 @@ class FakeAttributesAdapter:
     def set_comment(self, eids: list[ElementId], comment: str) -> None:
         for eid in eids:
             self._state.elements[eid].comment = comment
+
+    # ---- element-module wall situation ----
+
+    def get_wall_situation(self, eid: ElementId) -> str:
+        return self._state.elements[eid].wall_situation
+
+    def set_wall_situation(self, eids: list[ElementId], situation: str) -> None:
+        """Test-only seed (cwapi3d has no setter; the calc writes the real one)."""
+        for eid in eids:
+            self._state.elements[eid].wall_situation = situation
 
     # ---- material / sku / numbers ----
 
@@ -707,6 +811,18 @@ class FakeDisplayAdapter:
         self._state.recreate_calls.append(list(eids))
 
 
+class FakeVisualizationAdapter:
+    def __init__(self, state: FakeState) -> None:
+        self._state = state
+
+    def get_color(self, eid: ElementId) -> int:
+        return self._state.elements[eid].color
+
+    def set_color(self, eids: list[ElementId], color_id: int) -> None:
+        for eid in eids:
+            self._state.elements[eid].color = color_id
+
+
 class FakeProjectAdapter:
     def __init__(self, state: FakeState) -> None:
         self._state = state
@@ -720,6 +836,9 @@ class FakeProjectAdapter:
         guid = f"fake-new-guid-{self._state._next_project_guid:08d}"
         self._state._next_project_guid += 1
         return guid
+
+    def get_3d_file_name(self) -> str:
+        return self._state.file_name_3dc
 
     # ---- metadata (str) ----
 
@@ -980,6 +1099,68 @@ class FakeOperationsAdapter:
         self._state.delete_end_types_calls.append(list(eids))
 
 
+class FakeModuleAdapter:
+    """Records element-module calls; stores the mirror ModuleProperties as-is."""
+
+    def __init__(self, state: FakeState) -> None:
+        self._state = state
+
+    def apply_properties(
+        self, eids: list[ElementId], properties: "ModuleProperties"
+    ) -> None:
+        self._state.module_applied.append((list(eids), properties))
+        for eid in eids:
+            self._state.module_properties[eid] = properties
+
+    def get_properties(self, eid: ElementId) -> "ModuleProperties":
+        from pycadwork.detail.properties import ModuleProperties
+
+        return self._state.module_properties.get(eid, ModuleProperties())
+
+    def start_calculation(self, cover_eids: list[ElementId]) -> None:
+        self._state.module_calculation_calls.append(list(cover_eids))
+
+    def start_calculation_silently(self, cover_eids: list[ElementId]) -> None:
+        self._state.module_silent_calculation_calls.append(list(cover_eids))
+
+    def set_detail_path(self, path: str) -> None:
+        self._state.module_detail_path = path
+
+    # ---- module situations ----
+
+    def set_parts_situation(
+        self,
+        cover: ElementId,
+        add_children: list[ElementId],
+        remove_children: list[ElementId] = (),
+    ) -> None:
+        self._state.module_parts_situation.append(
+            (cover, list(add_children), list(remove_children))
+        )
+
+    def set_rough_volume_situation(
+        self,
+        cover: ElementId,
+        add_partners: list[ElementId],
+        remove_partners: list[ElementId] = (),
+    ) -> None:
+        self._state.module_rough_volume_situation.append(
+            (cover, list(add_partners), list(remove_partners))
+        )
+
+    def auto_set_parts_situation(self, eids: list[ElementId]) -> None:
+        self._state.module_auto_parts_situation.append(list(eids))
+
+    def auto_set_rough_volume_situation(self, eids: list[ElementId]) -> None:
+        self._state.module_auto_rough_volume_situation.append(list(eids))
+
+    def activate_parts_without_situation(self) -> list[ElementId]:
+        return []
+
+    def activate_rv_without_situation(self) -> list[ElementId]:
+        return []
+
+
 class FakeBimAdapter:
     def __init__(self, state: FakeState) -> None:
         self._state = state
@@ -1036,6 +1217,8 @@ class FakeCadworkAdapter:
         "bim",
         "material",
         "operations",
+        "module",
+        "visualization",
     )
 
     def __init__(self) -> None:
@@ -1049,3 +1232,5 @@ class FakeCadworkAdapter:
         self.bim = FakeBimAdapter(self.state)
         self.material = FakeMaterialAdapter(self.state)
         self.operations = FakeOperationsAdapter(self.state)
+        self.module = FakeModuleAdapter(self.state)
+        self.visualization = FakeVisualizationAdapter(self.state)

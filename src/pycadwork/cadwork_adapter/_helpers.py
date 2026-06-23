@@ -26,7 +26,7 @@ def plane_to_cadwork_args(cadwork_module: Any, plane: Plane3D) -> tuple[Any, flo
     so the distance is ``-plane.d()``.
     """
     n = plane.normal
-    return (cadwork_module.point_3d(n.x, n.y, n.z), -plane.d())
+    return cadwork_module.point_3d(n.x, n.y, n.z), -plane.d()
 
 
 def to_tuple(p: Any) -> PointTuple:
