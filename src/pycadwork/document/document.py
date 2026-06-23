@@ -93,7 +93,8 @@ class Document:
     @staticmethod
     def covers() -> list[Aggregate]:
         """All cover aggregates (``Wall`` / ``Slab`` / ``Roof``) in the model."""
-        return discover_covers()
+        eids = cadwork.elements.get_all_identifiable_element_ids()
+        return discover_covers(eids)
 
     def __repr__(self) -> str:
         return f"Document(guid={self.project.guid!r}, name={self.project.name!r})"

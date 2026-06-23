@@ -87,3 +87,50 @@ def test_non_overlapping_element_left_unassigned():
 
     assert report == []
     assert far.attrs.group == ""
+
+
+def test_clean_single_overlap_is_not_marked():
+    wall_a, wall_b = _covers()
+    stud = _box(100.0, 0.0, 100.0, 80.0, 200.0, 2000.0)
+
+    report = CoverAssigner([wall_a, wall_b]).assign([stud])
+
+    assert report[0].uncertain is False
+    assert stud.attrs.user_attribute(1) == ""
+
+
+def test_ambiguous_overlap_is_marked():
+    wall_a, wall_b = _covers()
+    # Spans both walls (x[500,2100]) -> assigned to the bigger overlap, but
+    # marked because more than one cover overlapped.
+    spanning = _box(500.0, 0.0, 100.0, 1600.0, 200.0, 2000.0)
+
+    report = CoverAssigner([wall_a, wall_b]).assign([spanning])
+
+    assert report[0].cover.id == wall_a.id
+    assert report[0].uncertain is True
+    assert spanning.attrs.user_attribute(1) == "uncertain-cover"
+
+
+def test_soft_match_within_tolerance_is_marked():
+    wall_a, wall_b = _covers()
+    # Sits just past WallA's far face (x[1010,1090]); only a positive tolerance
+    # reaches it, so the match is soft and must be marked.
+    grazing = _box(1010.0, 0.0, 100.0, 80.0, 200.0, 2000.0)
+
+    report = CoverAssigner([wall_a], tolerance=50.0).assign([grazing])
+
+    assert report[0].cover.id == wall_a.id
+    assert report[0].uncertain is True
+    assert grazing.attrs.user_attribute(1) == "uncertain-cover"
+
+
+def test_mark_attribute_index_and_value_are_configurable():
+    wall_a, wall_b = _covers()
+    spanning = _box(500.0, 0.0, 100.0, 1600.0, 200.0, 2000.0)
+
+    CoverAssigner([wall_a, wall_b], mark_attribute_index=7, mark_value="REVIEW").assign(
+        [spanning]
+    )
+
+    assert spanning.attrs.user_attribute(7) == "REVIEW"
