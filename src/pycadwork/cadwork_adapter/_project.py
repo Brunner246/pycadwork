@@ -30,6 +30,18 @@ class ProjectAdapter:
 
         return utility_controller.get_3d_file_name()
 
+    def get_3d_file_path(self) -> str:
+        import utility_controller
+
+        return utility_controller.get_3d_file_path()
+
+    # ---- persistence ----
+
+    def save_3d_file(self) -> None:
+        import utility_controller
+
+        utility_controller.save_3d_file_silently()
+
     # ---- metadata (str) ----
 
     def get_project_name(self) -> str:

@@ -4,18 +4,18 @@ from __future__ import annotations
 
 from pycadwork.document.document import Document
 from pycadwork.document.guard import (
-    NotA3dcDocumentError,
-    current_3dc_file_name,
-    is_3dc_document,
-    require_3dc_document,
+    NotA3dDocumentError,
+    current_3d_file_name,
+    is_3d_document,
+    require_3d_document,
 )
 from pycadwork.document.project import ProjectInfo
 
 __all__ = [
     "Document",
-    "NotA3dcDocumentError",
+    "NotA3dDocumentError",
     "ProjectInfo",
-    "current_3dc_file_name",
-    "is_3dc_document",
-    "require_3dc_document",
+    "current_3d_file_name",
+    "is_3d_document",
+    "require_3d_document",
 ]

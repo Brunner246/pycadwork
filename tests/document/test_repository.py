@@ -84,6 +84,18 @@ def test_delete_removes_elements_from_the_model() -> None:
     assert doc.elements() == []
 
 
+def test_file_path_delegates_to_the_seam() -> None:
+    cadwork.project._state.model_file_name = "C:/proj/Tower.3dc"
+    assert Document().file_path == "C:/proj/Tower.3dc"
+
+
+def test_save_persists_the_document_through_the_seam() -> None:
+    doc = Document()
+    before = cadwork.project._state.save_count
+    doc.save()
+    assert cadwork.project._state.save_count == before + 1
+
+
 def test_covers_discovers_cover_aggregates() -> None:
     cadwork.grouping.set_element_grouping_type(GroupingMode.GROUP)
     wall_parent, stud = _beam(0), _beam(600)

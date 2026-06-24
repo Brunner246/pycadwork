@@ -23,7 +23,7 @@ from collections.abc import Iterable
 from typing import Any, TypeVar
 
 from pycadwork.cadwork_adapter import cadwork
-from pycadwork.document.guard import is_3dc_document
+from pycadwork.document.guard import is_3d_document
 from pycadwork.document.project import ProjectInfo
 from pycadwork.element.base import Element
 from pycadwork.element.cover.aggregate import Aggregate
@@ -50,13 +50,22 @@ class Document:
         return self.project.guid
 
     @property
-    def file_name_3dc(self) -> str:
-        """The active 3d document's file name (empty if unsaved / unavailable)."""
+    def file_name(self) -> str:
+        """The active 3D document's file name (empty if unsaved / unavailable)."""
         return cadwork.project.get_3d_file_name()
 
-    def is_3dc(self) -> bool:
-        """True iff the active document is a 3dc model. See :func:`is_3dc_document`."""
-        return is_3dc_document()
+    @property
+    def file_path(self) -> str:
+        """The active 3D document's full path (empty if unsaved / unavailable)."""
+        return cadwork.project.get_3d_file_path()
+
+    def is_3d(self) -> bool:
+        """True iff the active document is a 3D model. See :func:`is_3d_document`."""
+        return is_3d_document()
+
+    def save(self) -> None:
+        """Persist the active 3D document to disk in place (silently)."""
+        cadwork.project.save_3d_file()
 
     # ---- repository ----
 
