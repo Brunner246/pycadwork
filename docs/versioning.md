@@ -47,9 +47,14 @@ Stated in the docstrings too:
 - **Git LFS** is a further prerequisite for *efficient* binary versioning. Without
   it, `init` warns once and the `.3dc` commits as an ordinary (large) blob — still
   valid, just heavier. `include_binary=False` allows JSONL-only commits.
-- **Float drift across environments**: the codec is bit-exact, but the same model
-  on a different machine/cadwork build may report slightly different floats →
-  spurious diffs. Commit from a consistent environment.
+- **Float drift across environments**: the same model on a different
+  machine/cadwork build may report floats differing by 1–2 ULP in their
+  least-significant bits. To stop these from showing as spurious, never-resolving
+  diffs, the codec quantizes every float to 12 significant digits on write
+  (`FLOAT_SIGNIFICANT_DIGITS`) — scale-invariant, so it absorbs drift in large
+  volumes as well as in coordinates while preserving sub-micron precision at
+  building scale. Reads stay faithful to what is on disk; tune via
+  `SnapshotCodec(float_significant_digits=…)`.
 - **Merge conflicts** are surfaced, never auto-resolved: `pull` raises
   `MergeConflictError`; conflict markers in the JSONL make `restore` raise
   `CodecError`. The binary `.3dc` can't be line-merged — resolve in git, then

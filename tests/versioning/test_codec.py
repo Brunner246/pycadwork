@@ -54,9 +54,7 @@ def _populated_snapshot() -> ModelSnapshot:
             AttributeRecord(GUID, 1, name="Box", group_name="A"),
             AttributeRecord(GUID, 3, name="Joist", production_number=7),
         ),
-        geometries=(
-            GeometryRecord(GUID, 3, p1x=0.1, length=2999.9999999999995, volume=1e-9),
-        ),
+        geometries=(GeometryRecord(GUID, 3, p1x=0.1, length=2999.875, volume=1e-9),),
         user_attributes=(
             UserAttributeRecord(GUID, 3, 1, value="a"),
             UserAttributeRecord(GUID, 3, 2, value="b"),
@@ -186,16 +184,82 @@ def test_spans_serializes_as_native_bool(tmp_path: Path) -> None:
     assert '"spans":1' not in text and '"spans":0' not in text
 
 
-def test_awkward_floats_round_trip_exactly(tmp_path: Path) -> None:
+def test_clean_floats_round_trip_exactly(tmp_path: Path) -> None:
+    # Values already within the quantization tolerance survive a round-trip
+    # untouched — quantization only ever strips ULP-level drift.
     snap = ModelSnapshot(
         project=ProjectRecord(GUID),
-        geometries=(
-            GeometryRecord(GUID, 1, p1x=0.1, p1y=2999.9999999999995, volume=1e-9),
-        ),
+        geometries=(GeometryRecord(GUID, 1, p1x=0.1, p1y=2999.875, volume=1e-9),),
     )
     SnapshotCodec().write(snap, tmp_path)
     restored = SnapshotCodec().read(tmp_path)
     assert restored.geometries[0] == snap.geometries[0]
+
+
+# ---- float tolerance (cross-environment drift) ----
+
+
+def _geom_snapshot(**floats: float) -> ModelSnapshot:
+    return ModelSnapshot(
+        project=ProjectRecord(GUID),
+        geometries=(GeometryRecord(GUID, 1, **floats),),
+    )
+
+
+def test_ulp_drift_collapses_to_identical_bytes(tmp_path: Path) -> None:
+    # The same logical value differing by ULP-level drift (as it would across
+    # CPUs / cadwork builds) must serialize to byte-identical JSONL.
+    a, b = tmp_path / "a", tmp_path / "b"
+    SnapshotCodec().write(_geom_snapshot(length=2999.9999999999995), a)
+    SnapshotCodec().write(_geom_snapshot(length=3000.0000000000002), b)
+    rel = Path(MODEL_DIR) / "geometry.jsonl"
+    assert (a / rel).read_bytes() == (b / rel).read_bytes()
+
+
+def test_drift_in_large_magnitude_value_collapses(tmp_path: Path) -> None:
+    # Volumes are large (mm³); a double cannot hold a fixed decimal precision
+    # there, so significant-digit rounding is what absorbs the drift.
+    a, b = tmp_path / "a", tmp_path / "b"
+    SnapshotCodec().write(_geom_snapshot(volume=1234567890.0000002), a)
+    SnapshotCodec().write(_geom_snapshot(volume=1234567889.9999998), b)
+    rel = Path(MODEL_DIR) / "geometry.jsonl"
+    assert (a / rel).read_bytes() == (b / rel).read_bytes()
+
+
+def test_quantized_value_is_clean(tmp_path: Path) -> None:
+    SnapshotCodec().write(_geom_snapshot(length=2999.9999999999995), tmp_path)
+    line = (tmp_path / MODEL_DIR / "geometry.jsonl").read_text().splitlines()[0]
+    assert json.loads(line)["length"] == 3000.0
+
+
+def test_negative_zero_normalized_to_zero(tmp_path: Path) -> None:
+    # The sign of zero can flip across environments; both serialize as 0.0.
+    SnapshotCodec().write(_geom_snapshot(cog_x=-0.0), tmp_path)
+    text = (tmp_path / MODEL_DIR / "geometry.jsonl").read_text()
+    assert '"cog_x":0.0' in text
+    assert "-0.0" not in text
+
+
+def test_meaningful_precision_preserved(tmp_path: Path) -> None:
+    # Quantization must not disturb values that carry real sub-millimetre detail
+    # within the tolerance.
+    SnapshotCodec().write(_geom_snapshot(p1x=123.456789, width=0.001), tmp_path)
+    restored = SnapshotCodec().read(tmp_path)
+    assert restored.geometries[0].p1x == 123.456789
+    assert restored.geometries[0].width == 0.001
+
+
+def test_significant_digits_is_configurable(tmp_path: Path) -> None:
+    SnapshotCodec(float_significant_digits=4).write(
+        _geom_snapshot(length=123.456789), tmp_path
+    )
+    line = (tmp_path / MODEL_DIR / "geometry.jsonl").read_text().splitlines()[0]
+    assert json.loads(line)["length"] == 123.5
+
+
+def test_invalid_significant_digits_rejected() -> None:
+    with pytest.raises(ValueError):
+        SnapshotCodec(float_significant_digits=0)
 
 
 # ---- manifest ----
