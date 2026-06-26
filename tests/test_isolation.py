@@ -8,6 +8,8 @@ through a sub-adapter in ``pycadwork.cadwork_adapter`` instead.
 from __future__ import annotations
 
 import ast
+import subprocess
+import sys
 from pathlib import Path
 
 FORBIDDEN_TOPLEVEL = {
@@ -68,3 +70,32 @@ def test_only_cadwork_adapter_package_touches_cadwork_packages():
         "pycadwork.cadwork_adapter instead:\n"
         + "\n".join(f"  {p}: {sorted(mods)}" for p, mods in offenders.items())
     )
+
+
+def test_importing_versioning_does_not_import_gitpython():
+    """``import pycadwork.versioning`` must not pull in GitPython.
+
+    GitPython (the ``git`` module) is the optional, often-absent backend; the
+    package must import cleanly without it (it is imported lazily, inside
+    methods). Run in a subprocess so an earlier in-process test that imported
+    ``git`` cannot mask a regression.
+    """
+    code = (
+        "import sys\n"
+        "import pycadwork.versioning\n"
+        "assert 'git' not in sys.modules, "
+        "'GitPython was imported at pycadwork.versioning import time'\n"
+    )
+    src = PROJECT_ROOT / "src"
+    env = {
+        "PYTHONPATH": f"{src}{__import__('os').pathsep}{PROJECT_ROOT}",
+        "SYSTEMROOT": __import__("os").environ.get("SYSTEMROOT", ""),
+        "PATH": __import__("os").environ.get("PATH", ""),
+    }
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr

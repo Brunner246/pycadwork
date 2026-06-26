@@ -26,6 +26,19 @@ Modules:
 * :mod:`examples.persistence_queries`  — read the model into SQL, then query it (BuildingQuery)
 * :mod:`examples.sql_builder`          — the table-as-data SQL builder; query a pulled model
 * :mod:`examples.reporting`            — cutting lists and material totals over a snapshot
+* :mod:`examples.versioning`           — a git workflow over the model: commit, branch, restore
+
+Three scripts are **not** in the ``MODULES`` tour because they need a live model
+and a real git repository, so they only run inside cadwork (not under the fake
+adapter). All git work in them goes through the :class:`ModelVersioning` facade —
+no raw ``git`` / ``subprocess``:
+
+* :mod:`examples.versioning_in_cadwork` — commit the live model to a real git repo,
+  then branch / diff / merge (run from cadwork's API menu; see its module docstring)
+* :mod:`examples.versioning_branch_workflow` — branch + 5 beams + push, then switch
+  back to ``main`` without merging
+* :mod:`examples.versioning_idle_session` — the same lifecycle as a copy-paste
+  session for cadwork's interactive Python shell (IDLE)
 
 .. note::
 
@@ -54,6 +67,7 @@ MODULES: tuple[str, ...] = (
     "persistence_queries",
     "sql_builder",
     "reporting",
+    "versioning",
 )
 
 __all__ = ["MODULES"]

@@ -7,17 +7,19 @@ requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Michael Brunner", email = "michael.brunner@cadwork.ch" }]
 dependencies = [
+    "cwapi3d>=33.264.1",
     "rtree>=1.4.1",
 ]
 
 [project.optional-dependencies]
 cadwork = ["cwapi3d>=33"]            # only inside cadwork's Python
+git = ["GitPython>=3.1"]             # the versioning git backend (often absent in cadwork)
 
 [project.urls]
 Repository = "https://github.com/Brunner246/pycadwork"
 
 [dependency-groups]
-dev = ["pytest>=8.0", "black>=26.5.1", "ruff"]
+dev = ["pytest>=8.0", "black>=26.5.1", "ruff", "GitPython>=3.1"]
 
 [build-system]
 requires = ["hatchling"]
@@ -36,6 +38,9 @@ pythonpath = ["src", "."]
 [tool.ruff]
 target-version = "py314"
 line-length = 100
+# A copy-paste-into-the-REPL session: its one-line for/if/comprehension layout is
+# intentional (paste line by line), so keep ruff lint + format from reflowing it.
+extend-exclude = ["examples/versioning_idle_session.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W"]   # pycodestyle errors/warnings + pyflakes

@@ -243,8 +243,12 @@ class FakeState:
     project_user_attributes: dict[int, str] = field(default_factory=dict)
     project_user_attribute_names: dict[int, str] = field(default_factory=dict)
     project_data: dict[str, str] = field(default_factory=dict)
-    # Active 3d document file name; defaults to a valid 3dc doc so detail tests pass.
-    file_name_3dc: str = "model.3dc"
+    # Active 3D document file name; defaults to a valid 3D doc so detail tests pass.
+    # Versioning tests set this to an absolute tmp_path; save_3d_file then
+    # materializes placeholder bytes there (a bare name like the default is left
+    # untouched, so the rest of the suite is unaffected).
+    model_file_name: str = "model.3dc"
+    save_count: int = 0
     _next_project_guid: int = 1
     # ---- material catalog (name <-> id, plus the per-material snapshot) ----
     material_by_id: dict[MaterialId, MaterialSnapshot] = field(default_factory=dict)
@@ -838,7 +842,23 @@ class FakeProjectAdapter:
         return guid
 
     def get_3d_file_name(self) -> str:
-        return self._state.file_name_3dc
+        return self._state.model_file_name
+
+    def get_3d_file_path(self) -> str:
+        return self._state.model_file_name
+
+    # ---- persistence ----
+
+    def save_3d_file(self) -> None:
+        self._state.save_count += 1
+        from pathlib import Path
+
+        path = Path(self._state.model_file_name)
+        # Only an absolute path is a real on-disk location a versioning test set
+        # up; a bare default name ("model.3dc") is left untouched.
+        if path.is_absolute():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"fake-3d-binary")
 
     # ---- metadata (str) ----
 
