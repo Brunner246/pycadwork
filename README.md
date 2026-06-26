@@ -97,6 +97,7 @@ The full guide lives in [`docs/`](docs/):
 | [Building & storey assignment](docs/building.md) | `StoreyAssigner` and the pure `StoreyStack`                                           |
 | [Persistence](docs/persistence.md) | Mirror the model to normalized SQL and back — `pull` / `push`, gateways, `UnitOfWork` |
 | [Reporting](docs/reporting.md) | `cutting_list`, `material_totals`, composable `by_*` dimensions                       |
+| [Rules](docs/rules.md) | `check`, composable model-validation rules, `ElementRule` / `ModelRule`, severities |
 | [Versioning](docs/versioning.md) | A git workflow over the `.3d/c` with diffable JSONL                                   |
 | [Utilities](docs/utilities.md) | `DisplayRefreshScope`, `batch_apply`, `auto_*` decorators                             |
 | [Testing](docs/testing.md) | The fake-adapter fixture and how to run the suite                                     |

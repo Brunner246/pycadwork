@@ -26,6 +26,7 @@ Modules:
 * :mod:`examples.persistence_queries`  — read the model into SQL, then query it (BuildingQuery)
 * :mod:`examples.sql_builder`          — the table-as-data SQL builder; query a pulled model
 * :mod:`examples.reporting`            — cutting lists and material totals over a snapshot
+* :mod:`examples.rules`                — validate the model against declarative rules
 * :mod:`examples.versioning`           — a git workflow over the model: commit, branch, restore
 
 Three scripts are **not** in the ``MODULES`` tour because they need a live model
@@ -67,6 +68,7 @@ MODULES: tuple[str, ...] = (
     "persistence_queries",
     "sql_builder",
     "reporting",
+    "rules",
     "versioning",
 )
 
