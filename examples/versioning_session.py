@@ -1,5 +1,3 @@
-# pycadwork versioning — a copy-paste session for cadwork's Python shell (IDLE).
-#
 # This is the SEQUENTIAL, no-functions version of examples/versioning_branch_workflow.py,
 # meant to be pasted into cadwork's interactive Python shell ONE LINE AT A TIME so
 # you can watch each step. It walks the same lifecycle:
