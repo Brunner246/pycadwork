@@ -5,8 +5,10 @@ projection of the live model (:meth:`pycadwork.persistence.ModelReader.read`).
 This codec materializes that snapshot as a *working tree* of per-table JSONL
 files — one newline-delimited JSON object per record, sorted by primary key — so
 that two snapshots produce byte-identical bytes when equal and minimal,
-line-local diffs when they differ. It reads the tree straight back into an equal
-``ModelSnapshot``.
+line-local diffs when they differ. Floats are quantized on write (see
+:data:`FLOAT_SIGNIFICANT_DIGITS`) so that cross-environment ULP drift does not
+register as a spurious diff. It reads the tree straight back into a
+``ModelSnapshot`` equal to the (quantized) original.
 
 The codec is **pure**: stdlib ``json`` / ``pathlib`` only, no cadwork, no git. It
 lives in :mod:`pycadwork.versioning` (not ``persistence``) because making a
@@ -35,6 +37,7 @@ wrap/unwrap step.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -75,6 +78,19 @@ from pycadwork.persistence.sql import Table
 #: other value — a forward-incompatible tree fails loudly rather than silently
 #: mis-parsing.
 FORMAT_VERSION = 1
+
+#: Floats are quantized to this many significant digits before serialization.
+#: The same logical geometry computed on different CPUs / cadwork builds drifts
+#: by 1–2 ULP in a double's least-significant bits, so an unchanged model would
+#: otherwise emit ``2999.9999999999995`` on one machine and ``3000.0000000000002``
+#: on another — a spurious, never-resolving line diff. Rounding to a fixed number
+#: of *significant digits* (not decimal places: at building-scale magnitudes a
+#: double cannot even hold a fixed decimal precision, so decimal rounding would
+#: leave the drift untouched) collapses such values to byte-identical JSONL while
+#: preserving sub-micron precision at building scale — twelve digits sits well
+#: below a double's ~15–16 digit precision, so it absorbs ULP-level drift without
+#: discarding anything physically meaningful.
+FLOAT_SIGNIFICANT_DIGITS = 12
 
 #: The subdirectory under the working tree that holds the per-table JSONL files.
 MODEL_DIR = "model"
@@ -163,9 +179,34 @@ def _pycadwork_version() -> str:
         return "unknown"
 
 
-def _record_to_dict(record: object, columns: tuple[str, ...]) -> dict[str, Any]:
-    """Build a dict in column order so JSON keys are emitted in field order."""
-    return {name: getattr(record, name) for name in columns}
+def _quantize(value: Any, significant_digits: int) -> Any:
+    """Round a float to ``significant_digits`` to absorb cross-environment drift.
+
+    Non-float values pass through untouched (``bool`` is an ``int`` subclass, so
+    it is never mistaken for a float). Zero, infinities, and NaN are returned as
+    is — except a negative zero is normalized to ``0.0``, since the sign of zero
+    can flip across environments and would otherwise be its own spurious diff.
+    See :data:`FLOAT_SIGNIFICANT_DIGITS` for why this is significant-digit, not
+    decimal-place, rounding.
+    """
+    if type(value) is not float:
+        return value
+    if not math.isfinite(value):
+        return value
+    if value == 0.0:
+        return 0.0  # collapse -0.0 → 0.0
+    exponent = math.floor(math.log10(abs(value)))
+    return round(value, significant_digits - 1 - exponent)
+
+
+def _record_to_dict(
+    record: object, columns: tuple[str, ...], significant_digits: int
+) -> dict[str, Any]:
+    """Build a dict in column order (so JSON keys follow field order), quantizing
+    each float to ``significant_digits`` to keep equal models byte-identical."""
+    return {
+        name: _quantize(getattr(record, name), significant_digits) for name in columns
+    }
 
 
 def _sort_key(table: Table) -> Any:
@@ -180,9 +221,22 @@ def _dump_line(obj: dict[str, Any]) -> str:
 
 
 class SnapshotCodec:
-    """Read/write a :class:`ModelSnapshot` as a deterministic JSONL working tree."""
+    """Read/write a :class:`ModelSnapshot` as a deterministic JSONL working tree.
 
-    __slots__ = ()
+    Floats are quantized to ``float_significant_digits`` on write so that
+    environment-induced drift in a double's least-significant bits does not show
+    up as a spurious diff (see :data:`FLOAT_SIGNIFICANT_DIGITS`). Reads are
+    faithful — they parse exactly what is on disk.
+    """
+
+    __slots__ = ("_float_sig",)
+
+    def __init__(
+        self, *, float_significant_digits: int = FLOAT_SIGNIFICANT_DIGITS
+    ) -> None:
+        if float_significant_digits < 1:
+            raise ValueError("float_significant_digits must be >= 1")
+        self._float_sig = float_significant_digits
 
     # ---- write ----
 
@@ -238,7 +292,9 @@ class SnapshotCodec:
         path = model_dir / spec.filename
         columns = spec.table.column_names
         ordered = sorted(records, key=_sort_key(spec.table))
-        lines = [_dump_line(_record_to_dict(r, columns)) for r in ordered]
+        lines = [
+            _dump_line(_record_to_dict(r, columns, self._float_sig)) for r in ordered
+        ]
         text = "".join(line + "\n" for line in lines)
         path.write_text(text, encoding="utf-8")
         return path
