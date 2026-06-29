@@ -39,7 +39,12 @@ from pycadwork.persistence._ids import (
     MemberId,
     ProjectGuid,
 )
-from pycadwork.persistence.mappers import ModelReader, ModelWriter, WriteResult
+from pycadwork.persistence.mappers import (
+    ModelReader,
+    ModelWriter,
+    UserAttributeIndices,
+    WriteResult,
+)
 from pycadwork.persistence.query import BuildingQuery
 from pycadwork.persistence.records import (
     AttributeRecord,
@@ -86,6 +91,7 @@ __all__ = [
     "SyncReport",
     "Synchronizer",
     "UnitOfWork",
+    "UserAttributeIndices",
     "UserAttributeRecord",
     "WriteResult",
     "diff",

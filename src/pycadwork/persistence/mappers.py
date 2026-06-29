@@ -31,7 +31,7 @@ cwapi3d — the version-isolation seam stays single (see ``tests/test_isolation`
 from __future__ import annotations
 
 import warnings
-from collections.abc import Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 
 from pycadwork.cadwork_adapter import cadwork
@@ -80,10 +80,57 @@ from pycadwork.persistence.records import (
     UserAttributeRecord,
 )
 
+
+@dataclass(frozen=True, slots=True)
+class UserAttributeIndices:
+    """The 1-based user-attribute slots a :class:`ModelReader` probes.
+
+    A meaningful value object instead of a bare range/list of ints: every slot
+    must be 1-based (cadwork user attributes are 1-indexed), duplicates are
+    dropped while order is preserved, and the object is iterable so the reader
+    scans it directly. Construct it from any iterable —
+    ``UserAttributeIndices([1, 3, 7])`` or :meth:`covering` /
+    :meth:`default` — or pass a plain list/range straight to ``ModelReader``,
+    which coerces it.
+    """
+
+    indices: tuple[int, ...]
+
+    def __post_init__(self) -> None:
+        normalized = tuple(dict.fromkeys(self.indices))
+        if any(i < 1 for i in normalized):
+            raise ValueError(
+                f"user-attribute slots must be 1-based; got {normalized!r}"
+            )
+        object.__setattr__(self, "indices", normalized)
+
+    @classmethod
+    def default(cls) -> "UserAttributeIndices":
+        """The default scan range — slots 1 through 10."""
+        return cls(tuple(range(1, 11)))
+
+    @classmethod
+    def covering(cls, start: int, stop: int) -> "UserAttributeIndices":
+        """Slots ``start`` .. ``stop - 1`` (mirrors :func:`range`)."""
+        return cls(tuple(range(start, stop)))
+
+    def __iter__(self) -> Iterator[int]:
+        return iter(self.indices)
+
+    def __len__(self) -> int:
+        return len(self.indices)
+
+    def __contains__(self, index: object) -> bool:
+        return index in self.indices
+
+
 # Indexed user attributes have no "list all" API at the seam, so the reader
-# probes a fixed range of slots and keeps the non-empty ones. Slots beyond this
-# are not captured — a documented, deliberate bound rather than silent loss.
-USER_ATTRIBUTE_SCAN_RANGE = range(1, 11)
+# probes a fixed set of slots and keeps the non-empty ones. Slots outside this
+# set are not captured — a documented, deliberate bound rather than silent loss.
+# This is only the *default*: pass a custom UserAttributeIndices (or a plain
+# list/range) to ``ModelReader(user_attribute_indices=...)`` to widen, narrow,
+# or target specific slots.
+USER_ATTRIBUTE_SCAN_RANGE = UserAttributeIndices.default()
 
 
 def _aabb(vertices: Sequence[PointTuple]) -> tuple[float, ...]:
@@ -98,6 +145,27 @@ def _aabb(vertices: Sequence[PointTuple]) -> tuple[float, ...]:
 
 class ModelReader:
     """Project the live cadwork model into a :class:`ModelSnapshot`."""
+
+    __slots__ = ("_user_attribute_indices",)
+
+    def __init__(
+        self,
+        user_attribute_indices: UserAttributeIndices | Iterable[int] | None = None,
+    ) -> None:
+        """Configure which indexed user-attribute slots :meth:`read` probes.
+
+        Defaults to :data:`USER_ATTRIBUTE_SCAN_RANGE` (slots 1–10). Pass a
+        :class:`UserAttributeIndices` for a meaningful, validated set, or a plain
+        list / range (e.g. ``[1, 3, 7]`` or ``range(1, 21)``) which is coerced.
+        """
+        if user_attribute_indices is None:
+            self._user_attribute_indices = USER_ATTRIBUTE_SCAN_RANGE
+        elif isinstance(user_attribute_indices, UserAttributeIndices):
+            self._user_attribute_indices = user_attribute_indices
+        else:
+            self._user_attribute_indices = UserAttributeIndices(
+                tuple(user_attribute_indices)
+            )
 
     def read(self) -> ModelSnapshot:
         """Read the whole active model into records.
@@ -136,7 +204,7 @@ class ModelReader:
             )
             attributes.append(ModelReader._attribute_record(guid, element))
             geometries.append(ModelReader._geometry_record(guid, eid))
-            user_attributes.extend(ModelReader._user_attribute_records(guid, element))
+            user_attributes.extend(self._user_attribute_records(guid, element))
 
             # A material link row only when the element actually carries a
             # material — mirrors cover / storey-assignment rows, and keeps every
@@ -252,13 +320,12 @@ class ModelReader:
             aabb_max_z=box[5],
         )
 
-    @staticmethod
     def _user_attribute_records(
-        guid: ProjectGuid, element
+        self, guid: ProjectGuid, element
     ) -> list[UserAttributeRecord]:
         records: list[UserAttributeRecord] = []
         eid = ElementId(element.id)
-        for index in USER_ATTRIBUTE_SCAN_RANGE:
+        for index in self._user_attribute_indices:
             value = element.attrs.user_attribute(index)
             if value:
                 records.append(UserAttributeRecord(guid, eid, index, value))
