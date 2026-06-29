@@ -18,7 +18,11 @@ from pycadwork import (
 from pycadwork.cadwork_adapter import cadwork
 from pycadwork.cadwork_adapter.types import CoverKind, GroupingMode, MaterialSnapshot
 from pycadwork.persistence._diff import diff
-from pycadwork.persistence.mappers import ModelReader, ModelWriter
+from pycadwork.persistence.mappers import (
+    ModelReader,
+    ModelWriter,
+    UserAttributeIndices,
+)
 from pycadwork.persistence.records import ElementRecord, ModelSnapshot, ProjectRecord
 
 
@@ -98,6 +102,60 @@ def test_read_captures_user_attributes_in_scan_range() -> None:
 
     user_attrs = snapshot.user_attributes_by_element()[beam.id]
     assert (user_attrs[0].attr_index, user_attrs[0].value) == (1, "spans-storeys")
+
+
+def test_read_default_reader_ignores_slots_outside_default_range() -> None:
+    beam = _beam()
+    beam.attrs.set_user_attribute(15, "high-slot")
+
+    snapshot = ModelReader().read()
+
+    assert beam.id not in snapshot.user_attributes_by_element()
+
+
+def test_read_captures_user_attributes_in_a_custom_range() -> None:
+    beam = _beam()
+    beam.attrs.set_user_attribute(15, "high-slot")
+
+    snapshot = ModelReader(UserAttributeIndices.covering(1, 21)).read()
+
+    user_attrs = snapshot.user_attributes_by_element()[beam.id]
+    assert (user_attrs[0].attr_index, user_attrs[0].value) == (15, "high-slot")
+
+
+def test_read_accepts_a_plain_list_of_indices() -> None:
+    beam = _beam()
+    beam.attrs.set_user_attribute(15, "high-slot")
+
+    snapshot = ModelReader(user_attribute_indices=[15]).read()
+
+    user_attrs = snapshot.user_attributes_by_element()[beam.id]
+    assert (user_attrs[0].attr_index, user_attrs[0].value) == (15, "high-slot")
+
+
+def test_read_with_empty_indices_captures_no_user_attributes() -> None:
+    beam = _beam()
+    beam.attrs.set_user_attribute(1, "spans-storeys")
+
+    snapshot = ModelReader(UserAttributeIndices(())).read()
+
+    assert beam.id not in snapshot.user_attributes_by_element()
+
+
+def test_user_attribute_indices_rejects_non_positive_slots() -> None:
+    with pytest.raises(ValueError):
+        UserAttributeIndices([0])
+    with pytest.raises(ValueError):
+        UserAttributeIndices([-1])
+
+
+def test_user_attribute_indices_dedupes_preserving_order() -> None:
+    indices = UserAttributeIndices([3, 1, 3, 7, 1])
+
+    assert list(indices) == [3, 1, 7]
+    assert len(indices) == 3
+    assert 7 in indices
+    assert 2 not in indices
 
 
 def test_read_dedupes_material_master_and_links_each_element() -> None:
