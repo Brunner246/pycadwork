@@ -120,6 +120,15 @@ class Repository(Protocol):
         """
         ...
 
+    def read_file_at_ref(self, ref: str, path: str) -> str:
+        """Return the text content of ``path`` as it exists at ``ref``.
+
+        A pure, no-checkout read (``git show <ref>:<path>``) — the working tree
+        is never touched. Used to preview a ref's snapshot before switching to
+        it. Raises :class:`RepositoryError` if ``ref`` or ``path`` do not exist.
+        """
+        ...
+
     def diff(
         self, a: str | None = None, b: str | None = None, *, stat: bool = False
     ) -> str:
@@ -137,6 +146,17 @@ class Repository(Protocol):
 
     def add_remote(self, name: str, url: str) -> None:
         """Configure remote ``name`` to point at ``url`` (idempotent: updates if it exists)."""
+        ...
+
+    def init_local_remote(self, path: Path) -> Path:
+        """Ensure a bare repository exists at local ``path``; return its resolved path.
+
+        Creates a network-free **bare** repo (idempotent — an existing one is left
+        untouched) so it can serve as a local/offline remote: a plain folder or a
+        UNC network share over which push/pull run entirely on the filesystem, with
+        no server. Pair with :meth:`add_remote` to wire it. ``path`` must be a local
+        filesystem location, not a URL.
+        """
         ...
 
     def push(

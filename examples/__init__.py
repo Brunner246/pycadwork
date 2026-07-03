@@ -18,6 +18,7 @@ Modules:
 * :mod:`examples.covers`               — Wall / Slab / Roof, CoverBuilder, discover_covers
 * :mod:`examples.containers_and_mep`   — Container containment and MEP runs
 * :mod:`examples.connectivity`         — find_connected and the connection graph
+* :mod:`examples.collision`            — clash / contact / near-miss / clearance checks
 * :mod:`examples.raycast`              — cast_ray: which elements a ray hits, nearest-first
 * :mod:`examples.building_storeys`     — StoreyStack and StoreyAssigner
 * :mod:`examples.utilities`            — DisplayRefreshScope, suppressed_display, batch_apply
@@ -40,6 +41,9 @@ no raw ``git`` / ``subprocess``:
   back to ``main`` without merging
 * :mod:`examples.versioning_idle_session` — the same lifecycle as a copy-paste
   session for cadwork's interactive Python shell (IDLE)
+* :mod:`examples.versioning_dock_widget` — a PyQt6 (MVVM) dock widget that docks
+  into cadwork's main window to commit / branch / push / pull / revert the live
+  model interactively (needs PyQt6 in addition to the git backend)
 
 .. note::
 
@@ -60,6 +64,7 @@ MODULES: tuple[str, ...] = (
     "covers",
     "containers_and_mep",
     "connectivity",
+    "collision",
     "raycast",
     "building_storeys",
     "utilities",

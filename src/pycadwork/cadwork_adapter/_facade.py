@@ -10,8 +10,10 @@ from __future__ import annotations
 
 from pycadwork.cadwork_adapter._attributes import AttributesAdapter
 from pycadwork.cadwork_adapter._bim import BimAdapter
+from pycadwork.cadwork_adapter._collision import CollisionAdapter
 from pycadwork.cadwork_adapter._display import DisplayAdapter
 from pycadwork.cadwork_adapter._elements import ElementsAdapter
+from pycadwork.cadwork_adapter._file import FileAdapter
 from pycadwork.cadwork_adapter._geometry import GeometryAdapter
 from pycadwork.cadwork_adapter._grouping import GroupingAdapter
 from pycadwork.cadwork_adapter._material import MaterialAdapter
@@ -36,6 +38,8 @@ class CadworkAdapter:
         "operations",
         "module",
         "visualization",
+        "collision",
+        "file",
     )
 
     def __init__(self) -> None:
@@ -50,3 +54,5 @@ class CadworkAdapter:
         self.operations: OperationsAdapter = OperationsAdapter()
         self.module: ModuleAdapter = ModuleAdapter()
         self.visualization: VisualizationAdapter = VisualizationAdapter()
+        self.collision: CollisionAdapter = CollisionAdapter()
+        self.file: FileAdapter = FileAdapter()

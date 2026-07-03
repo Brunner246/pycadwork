@@ -19,8 +19,10 @@ construction takes no arguments.
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Iterable
-from typing import Any, TypeVar
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from pycadwork.cadwork_adapter import cadwork
 from pycadwork.document.guard import is_3d_document
@@ -29,6 +31,12 @@ from pycadwork.element.base import Element
 from pycadwork.element.cover.aggregate import Aggregate
 from pycadwork.element.cover.discover import discover_covers
 from pycadwork.element.factory import from_id
+from pycadwork.utility import DisplayRefreshScope
+
+if TYPE_CHECKING:
+    # Type-only: pycadwork.versioning imports Document, so importing SyncPlan at
+    # runtime here would cycle back. apply_sync() imports it lazily instead.
+    from pycadwork.versioning._sync import SyncPlan
 
 # ``Element[Any]`` not bare ``Element``: ``Element`` is generic and invariant in
 # its geometry parameter, so ``bound=Element`` would reject specialized
@@ -66,6 +74,72 @@ class Document:
     def save(self) -> None:
         """Persist the active 3D document to disk in place (silently)."""
         cadwork.project.save_3d_file()
+
+    def reload_from(self, path: str | Path) -> int:
+        """Replace the live model with the elements in the ``.3dc`` at ``path``.
+
+        Deletes every identifiable element, then imports ``path`` into the active
+        document — a full-fidelity restore (real geometry, every element type),
+        unlike the best-effort JSON write-back which never moves existing
+        elements. ``import_3dc_file`` is *additive*, so the delete-all comes
+        first; both run inside a :class:`DisplayRefreshScope` so the viewport
+        refreshes once at the end. The imported elements get fresh cadwork ids
+        (the file's stored ids are not preserved). Returns the number of
+        identifiable elements present afterwards (the imported set, since the
+        model was emptied first).
+        """
+        with DisplayRefreshScope():
+            cadwork.elements.delete_elements([e.id for e in self.elements()])
+            cadwork.file.import_3dc_file(str(path))
+        return len(cadwork.elements.get_all_identifiable_element_ids())
+
+    def apply_sync(self, plan: "SyncPlan", binary_path: str | Path) -> int:
+        """Reconcile the live model to ``plan`` with minimal churn; return elements added.
+
+        Deletes ``plan.stale`` first. If ``plan.missing`` is empty, stops right
+        there — **no import at all** (the actual "smart" payoff: a pure-removal
+        switch never touches the binary). Otherwise imports ``binary_path``
+        (additive, so it brings in a fresh copy of *every* target element,
+        unchanged ones included, each with a fresh id/GUID), fingerprints just
+        the freshly-imported ids, and deletes whichever of them duplicate
+        something ``plan.unchanged`` already covers — so only the true delta
+        survives. Runs inside a :class:`DisplayRefreshScope` for a single
+        recreate on exit.
+        """
+        from pycadwork.persistence.mappers import ModelReader
+        from pycadwork.versioning._sync import fingerprint_snapshot
+
+        survivors: list[int] = []
+        with DisplayRefreshScope() as scope:
+            if plan.stale:
+                cadwork.elements.delete_elements(list(plan.stale))
+            if not plan.missing:
+                return 0
+
+            ids_before = set(cadwork.elements.get_all_identifiable_element_ids())
+            cadwork.file.import_3dc_file(str(binary_path))
+            fresh_ids = [
+                eid
+                for eid in cadwork.elements.get_all_identifiable_element_ids()
+                if eid not in ids_before
+            ]
+
+            fresh_fingerprints = fingerprint_snapshot(ModelReader().read())
+            remaining = Counter(plan.missing)
+            stale_duplicates: list[int] = []
+            for eid in fresh_ids:
+                fingerprint = fresh_fingerprints.get(eid)
+                if fingerprint is not None and remaining.get(fingerprint, 0) > 0:
+                    remaining[fingerprint] -= 1
+                    survivors.append(eid)
+                else:
+                    stale_duplicates.append(eid)
+
+            if stale_duplicates:
+                cadwork.elements.delete_elements(stale_duplicates)
+            if survivors:
+                scope.track([from_id(eid) for eid in survivors])
+        return len(survivors)
 
     # ---- repository ----
 

@@ -1,6 +1,6 @@
 """pycadwork.versioning — a git workflow over a cadwork model.
 
-A cadwork model is a binary ``.3dc`` that git can store but not *diff*. This
+A cadwork model is a binary ``.3d`` / ``.3dc`` that git can store but not *diff*. This
 package adds a real git workflow — branch / checkout / commit / push / pull —
 **plus** a machine-readable serialization so changes are reviewable. It is a thin
 bridge between three already-existing pieces:
@@ -11,7 +11,7 @@ bridge between three already-existing pieces:
 
 A :meth:`ModelVersioning.commit` losslessly captures the model as *both* a
 deterministic per-table JSONL tree (the reviewable, line-diffable artifact) and
-the saved ``.3dc`` tracked via Git LFS (the full-fidelity artifact a checkout
+the saved ``.3d`` / ``.3dc`` tracked via Git LFS (the full-fidelity artifact a checkout
 restores for reopening in cadwork). Branch / checkout / push / pull are ordinary
 git.
 
@@ -67,10 +67,13 @@ from pycadwork.versioning._repository import (
     RepositoryError,
     RepoStatus,
 )
+from pycadwork.versioning._sync import ElementFingerprint, SyncPlan, classify
 from pycadwork.versioning._versioning import (
     CommitReport,
     ModelVersioning,
+    ReloadReport,
     RestoreReport,
+    SmartSwitchReport,
 )
 
 __all__ = [
@@ -78,6 +81,7 @@ __all__ = [
     "CodecError",
     "CommitInfo",
     "CommitReport",
+    "ElementFingerprint",
     "GitNotAvailableError",
     "GitRepository",
     "LfsNotAvailableError",
@@ -85,11 +89,15 @@ __all__ = [
     "MergeConflictError",
     "ModelVersioning",
     "NoRepositoryError",
+    "ReloadReport",
     "RepoStatus",
     "Repository",
     "RepositoryError",
     "RestoreReport",
+    "SmartSwitchReport",
     "SnapshotCodec",
+    "SyncPlan",
+    "classify",
     "init_bare_repository",
     "init_repository",
     "is_git_available",

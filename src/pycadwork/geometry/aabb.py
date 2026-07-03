@@ -135,6 +135,20 @@ class AxisAlignedBoundingBox:
             or self._min.z > other._max.z
         )
 
+    def distance_to(self, other: AxisAlignedBoundingBox) -> float:
+        """The shortest distance between this box and ``other`` (``0.0`` if they touch or overlap).
+
+        The minimum gap is the Euclidean length of the per-axis separations:
+        on each axis the boxes are apart by ``max(self.min - other.max,
+        other.min - self.max, 0)``, and the overall distance combines those
+        three non-negative gaps. A cheap broad-phase proximity metric — for the
+        true solid distance use the cadwork collision seam instead.
+        """
+        dx = max(self._min.x - other._max.x, other._min.x - self._max.x, 0.0)
+        dy = max(self._min.y - other._max.y, other._min.y - self._max.y, 0.0)
+        dz = max(self._min.z - other._max.z, other._min.z - self._max.z, 0.0)
+        return (dx * dx + dy * dy + dz * dz) ** 0.5
+
     def union(self, other: AxisAlignedBoundingBox) -> AxisAlignedBoundingBox:
         return AxisAlignedBoundingBox.from_min_max(
             Point3D(

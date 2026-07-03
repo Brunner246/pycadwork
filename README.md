@@ -94,6 +94,7 @@ The full guide lives in [`docs/`](docs/):
 | [Containers and MEP](docs/containers-mep.md) | `Container` containment, `CircularMep` / `RectangularMep`                             |
 | [Geometry](docs/geometry.md) | `Point3D`, `Vector3D`, `Frame3D`, B-reps, bounding boxes, the R-tree index            |
 | [Connectivity](docs/connectivity.md) | `find_connected`, `build_connection_graph` / `ConnectionGraph`                        |
+| [Collision](docs/collision.md) | `check_collisions` — clash / contact / near-miss / clearance, `highlight_clashes`     |
 | [Building & storey assignment](docs/building.md) | `StoreyAssigner` and the pure `StoreyStack`                                           |
 | [Persistence](docs/persistence.md) | Mirror the model to normalized SQL and back — `pull` / `push`, gateways, `UnitOfWork` |
 | [Reporting](docs/reporting.md) | `cutting_list`, `material_totals`, composable `by_*` dimensions                       |

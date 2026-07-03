@@ -29,6 +29,8 @@ the [project README](../README.md) for the overview and quick start.
 
 - [Connectivity](connectivity.md) — `find_connected` and the whole-model
   contact graph.
+- [Collision](collision.md) — `check_collisions` for clash / contact /
+  near-miss ("should touch but don't") / clearance, with spatial pruning.
 - [Building & storey assignment](building.md) — `StoreyAssigner` and the pure
   `StoreyStack`.
 - [Persistence](persistence.md) — mirror the model to normalized SQL and back.
@@ -36,7 +38,7 @@ the [project README](../README.md) for the overview and quick start.
   grouping dimensions.
 - [Rules](rules.md) — validate the model against declarative, composable rules
   and get a pass/fail/severity report.
-- [Versioning](versioning.md) — a git workflow over the `.3dc` with diffable
+- [Versioning](versioning.md) — a git workflow over the `.3d` / `.3dc` with diffable
   JSONL.
 - [Utilities](utilities.md) — `DisplayRefreshScope`, `batch_apply`, and the
   `auto_*` decorators.
