@@ -14,7 +14,8 @@ used for mutating operations so the git-lfs clean/smudge filters actually run;
 the object API (``iter_commits`` / ``heads`` / ``is_dirty``) is used for reads.
 
 **Git LFS is degrade-and-warn:** :func:`init_repository` installs LFS and tracks
-``*.3dc`` when ``git-lfs`` is present; when it is absent it warns once and the
+``*.3d`` / ``*.3dc`` (a cadwork model may be saved as either) when ``git-lfs`` is
+present; when it is absent it warns once and the
 binary commits as an ordinary (large) blob — the repo is still valid, only
 heavier. Pushing/pulling an LFS history on an LFS-less machine errors from git
 itself, surfaced as :class:`RepositoryError`.
@@ -43,8 +44,11 @@ from pycadwork.versioning._repository import (
 #: The .gitattributes line that routes a pattern through git-lfs as binary.
 _LFS_ATTRIBUTE = "filter=lfs diff=lfs merge=lfs -text"
 
-#: Patterns the versioning facade tracks with LFS by default.
-DEFAULT_LFS_PATTERNS: tuple[str, ...] = ("*.3dc",)
+#: Patterns the versioning facade tracks with LFS by default. A cadwork model
+#: may be saved as either ``.3d`` or ``.3dc``, so both globs are tracked up
+#: front; :func:`pycadwork.versioning._versioning._lfs_pattern` additionally
+#: tracks the live document's actual extension at commit time.
+DEFAULT_LFS_PATTERNS: tuple[str, ...] = ("*.3d", "*.3dc")
 
 
 def is_git_available() -> bool:
@@ -66,7 +70,7 @@ def is_lfs_available() -> bool:
             check=True,
         )
         return True
-    except OSError, subprocess.CalledProcessError:
+    except (OSError, subprocess.CalledProcessError):
         return False
 
 
@@ -105,7 +109,7 @@ def init_repository(root: Path) -> GitRepository:
     """Initialize a git repository at ``root`` (idempotent) and set up LFS.
 
     When ``git-lfs`` is available, runs ``git lfs install --local`` and tracks
-    ``*.3d``; otherwise warns once and continues without LFS.
+    ``*.3d`` / ``*.3dc``; otherwise warns once and continues without LFS.
     """
     git = _import_git()
     path = Path(root)
@@ -141,7 +145,7 @@ def init_bare_repository(path: Path) -> Path:
 
 def _warn_no_lfs() -> None:
     warnings.warn(
-        "git-lfs is not installed; binary .3dc files will be committed as "
+        "git-lfs is not installed; binary .3d/.3dc files will be committed as "
         "ordinary git blobs (the repository works but grows large). Install "
         "git-lfs for efficient binary versioning.",
         RuntimeWarning,
@@ -244,6 +248,12 @@ class GitRepository:
                 f"merge of {ref!r} produced conflicts; resolve in git"
             )
 
+    def read_file_at_ref(self, ref: str, path: str) -> str:
+        try:
+            return self._repo.git.show(f"{ref}:{path}")
+        except self._git_error() as exc:
+            raise RepositoryError(f"reading {path!r} at {ref!r} failed: {exc}") from exc
+
     def diff(
         self, a: str | None = None, b: str | None = None, *, stat: bool = False
     ) -> str:
@@ -268,6 +278,9 @@ class GitRepository:
                 self._repo.git.remote("add", name, url)
         except self._git_error() as exc:
             raise RepositoryError(f"configuring remote {name!r} failed: {exc}") from exc
+
+    def init_local_remote(self, path: Path) -> Path:
+        return init_bare_repository(path)
 
     def push(
         self, remote: str = "origin", ref: str | None = None, *, force: bool = False
@@ -305,7 +318,7 @@ class GitRepository:
         try:
             commits = self._repo.iter_commits(max_count=max_count)
             return tuple(self._commit_info(c) for c in commits)
-        except ValueError, self._git_error():
+        except (ValueError, self._git_error()):
             # No commits yet (unborn branch).
             return ()
 

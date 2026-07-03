@@ -12,8 +12,10 @@ the OOP layer sends and remembers them, so tests can round-trip
 
 from __future__ import annotations
 
+import json
 import math
-from dataclasses import dataclass, field, replace
+from dataclasses import asdict, dataclass, field, fields, replace
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pycadwork.cadwork_adapter.types import (
@@ -249,6 +251,9 @@ class FakeState:
     # untouched, so the rest of the suite is unaffected).
     model_file_name: str = "model.3dc"
     save_count: int = 0
+    #: Counts ``FakeFileAdapter.import_3dc_file`` calls — lets a smart-switch
+    #: test assert a pure-removal switch never imports the binary at all.
+    import_calls: int = 0
     _next_project_guid: int = 1
     # ---- material catalog (name <-> id, plus the per-material snapshot) ----
     material_by_id: dict[MaterialId, MaterialSnapshot] = field(default_factory=dict)
@@ -311,6 +316,60 @@ class FakeState:
         el = _FakeElement(eid=eid, snapshot=snapshot, cadwork_guid=guid)
         self.elements[eid] = el
         return el
+
+
+# ---- the fake .3dc: a deterministic serialization of the element store ----
+#
+# The real ``save_3d_file`` writes cadwork's binary; the real
+# ``file_controller.import_3dc_file`` reads it back into the model. The fake has
+# no kernel, so its ".3dc" is just a JSON dump of the element store, and import
+# replays it. This makes the save → commit → checkout → import round-trip
+# faithful enough to prove a *moved* element is restored (the bug the binary
+# reload fixes). The dump is deterministic (elements sorted by id, ``sort_keys``)
+# so a second identical commit stays ``nothing_to_commit`` (the fake repository
+# compares tree bytes). Only elements are serialized — mirroring cadwork, where
+# ``import_3dc_file`` brings in elements but not project-level metadata.
+
+#: ``_FakeElement`` fields stored as point tuples (JSON arrays); restored to tuples.
+_TUPLE_FIELDS = frozenset({"p1", "p2", "p3", "xl", "yl", "zl"})
+
+
+def _serialize_elements(state: FakeState) -> str:
+    """A deterministic JSON dump of the element store (the fake ``.3dc`` body)."""
+    elements = [asdict(state.elements[eid]) for eid in sorted(state.elements)]
+    return json.dumps({"elements": elements}, sort_keys=True)
+
+
+def _load_elements_into(state: FakeState, text: str) -> None:
+    """Add the elements serialized in ``text`` to ``state`` (additive, like import).
+
+    Each element is re-``alloc``-ed, so it gets both a *fresh* element id and a
+    *fresh* ``cadwork_guid`` — mirroring real cwapi3d, which reassigns both on
+    every import (``import_3dc_file`` never preserves a stored GUID). The
+    caller empties the model first for a full reimport (see
+    :meth:`pycadwork.document.Document.reload_from`), or leaves existing
+    elements alone for an additive/smart sync (see
+    :meth:`pycadwork.document.Document.apply_sync`).
+    """
+    payload = json.loads(text)
+    element_field_names = {f.name for f in fields(_FakeElement)}
+    for stored in payload.get("elements", []):
+        snapshot = ElementTypeSnapshot(**stored["snapshot"])
+        el = state.alloc(snapshot)  # fresh eid *and* fresh cadwork_guid
+        for name, value in stored.items():
+            if (
+                name in ("eid", "snapshot", "cadwork_guid")
+                or name not in element_field_names
+            ):
+                continue
+            if name in _TUPLE_FIELDS:
+                setattr(el, name, tuple(value))
+            elif name == "surface_points":
+                el.surface_points = [tuple(p) for p in value]
+            elif name == "user_attributes":
+                el.user_attributes = {int(k): v for k, v in value.items()}
+            else:
+                setattr(el, name, value)
 
 
 # ---- sub-adapters ----
@@ -851,14 +910,15 @@ class FakeProjectAdapter:
 
     def save_3d_file(self) -> None:
         self._state.save_count += 1
-        from pathlib import Path
-
         path = Path(self._state.model_file_name)
         # Only an absolute path is a real on-disk location a versioning test set
-        # up; a bare default name ("model.3dc") is left untouched.
+        # up; a bare default name ("model.3dc") is left untouched. The bytes are a
+        # deterministic dump of the element store so a later import_3dc_file can
+        # replay them (see _serialize_elements) — and so an unchanged model writes
+        # identical bytes, keeping a re-commit "nothing to commit".
         if path.is_absolute():
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(b"fake-3d-binary")
+            path.write_text(_serialize_elements(self._state), encoding="utf-8")
 
     # ---- metadata (str) ----
 
@@ -1181,6 +1241,58 @@ class FakeModuleAdapter:
         return []
 
 
+def _fake_box(el: "_FakeElement") -> tuple[PointTuple, PointTuple]:
+    """The element's world-axis box ``(min, max)``.
+
+    Mirrors :meth:`FakeGeometryAdapter.get_element_vertices`: an element spans
+    ``[x, x+L] x [y, y+W] x [z, z+H]`` from ``p1``. Keeping the collision fake
+    on the *same* box the geometry fake reports means the SOLID and GEOMETRY
+    backends agree for the axis-aligned elements the tests place.
+    """
+    x, y, z = el.p1
+    return (x, y, z), (x + el.length, y + el.width, z + el.height)
+
+
+def _axis_gaps(
+    el_a: "_FakeElement", el_b: "_FakeElement"
+) -> tuple[float, float, float]:
+    """Per-axis separation between two boxes; negative means overlap on that axis."""
+    a_lo, b_lo = (_fake_box(el_a)[0], _fake_box(el_b)[0])
+    a_hi, b_hi = (_fake_box(el_a)[1], _fake_box(el_b)[1])
+    return tuple(  # type: ignore[return-value]
+        max(a_lo[i] - b_hi[i], b_lo[i] - a_hi[i]) for i in range(3)
+    )
+
+
+class FakeCollisionAdapter:
+    """Box-based stand-in for cwapi3d's exact solid tests.
+
+    A real kernel works on solids; the fake can only reason about the axis
+    boxes it already tracks, which is exact for the axis-aligned elements the
+    tests use. Touch tolerance is ``1e-9`` so flush faces register as contact.
+    """
+
+    _TOUCH = 1e-9
+
+    def __init__(self, state: FakeState) -> None:
+        self._state = state
+
+    def are_in_collision(self, a: ElementId, b: ElementId) -> bool:
+        gaps = _axis_gaps(self._state.elements[a], self._state.elements[b])
+        # Interpenetration: strictly overlapping (negative gap) on every axis.
+        return all(g < -self._TOUCH for g in gaps)
+
+    def are_in_contact(self, a: ElementId, b: ElementId) -> bool:
+        gaps = _axis_gaps(self._state.elements[a], self._state.elements[b])
+        # Closed boxes meet: no positive separation on any axis.
+        return all(g <= self._TOUCH for g in gaps)
+
+    def minimum_distance(self, a: ElementId, b: ElementId) -> float:
+        gaps = _axis_gaps(self._state.elements[a], self._state.elements[b])
+        positive = [max(0.0, g) for g in gaps]
+        return math.sqrt(sum(g * g for g in positive))
+
+
 class FakeBimAdapter:
     def __init__(self, state: FakeState) -> None:
         self._state = state
@@ -1220,6 +1332,23 @@ class FakeBimAdapter:
         self._state.storeys.setdefault(building, {})[storey] = height
 
 
+class FakeFileAdapter:
+    """In-memory stand-in for cwapi3d's ``file_controller`` file I/O.
+
+    ``import_3dc_file`` reads the fake ``.3dc`` (a JSON element dump written by
+    :meth:`FakeProjectAdapter.save_3d_file`) and adds its elements to the store —
+    *additive*, like the real call. Callers that want a clean replace empty the
+    model first (``Document.reload_from``). Returns ``None``, like cwapi3d.
+    """
+
+    def __init__(self, state: FakeState) -> None:
+        self._state = state
+
+    def import_3dc_file(self, path: str) -> None:
+        self._state.import_calls += 1
+        _load_elements_into(self._state, Path(path).read_text(encoding="utf-8"))
+
+
 # ---- facade ----
 
 
@@ -1239,6 +1368,8 @@ class FakeCadworkAdapter:
         "operations",
         "module",
         "visualization",
+        "collision",
+        "file",
     )
 
     def __init__(self) -> None:
@@ -1254,3 +1385,5 @@ class FakeCadworkAdapter:
         self.operations = FakeOperationsAdapter(self.state)
         self.module = FakeModuleAdapter(self.state)
         self.visualization = FakeVisualizationAdapter(self.state)
+        self.collision = FakeCollisionAdapter(self.state)
+        self.file = FakeFileAdapter(self.state)

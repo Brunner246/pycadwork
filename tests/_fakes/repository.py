@@ -52,6 +52,7 @@ class FakeRepository:
     _seq: int = 0
     _remotes: dict[str, str] = field(default_factory=dict)
     # observables for tests
+    local_remote_paths: list[str] = field(default_factory=list)
     lfs_attribute_patterns: list[str] = field(default_factory=list)
     lfs_tracked_patterns: list[str] = field(default_factory=list)
     push_calls: list[tuple[str, str | None, bool]] = field(default_factory=list)
@@ -172,6 +173,17 @@ class FakeRepository:
         self._branches[self._branch] = sha
         self._restore_tree(dict(self._commits[sha].tree))
 
+    def read_file_at_ref(self, ref: str, path: str) -> str:
+        from pycadwork.versioning._repository import RepositoryError
+
+        sha = self._branches.get(ref, ref)
+        if sha not in self._commits:
+            raise RepositoryError(f"unknown ref {ref!r}")
+        tree = self._commits[sha].tree
+        if path not in tree:
+            raise RepositoryError(f"no {path!r} at {ref!r}")
+        return tree[path].decode("utf-8")
+
     def diff(
         self, a: str | None = None, b: str | None = None, *, stat: bool = False
     ) -> str:
@@ -200,6 +212,12 @@ class FakeRepository:
 
     def add_remote(self, name: str, url: str) -> None:
         self._remotes[name] = url
+
+    def init_local_remote(self, path: Path) -> Path:
+        target = Path(path)
+        target.mkdir(parents=True, exist_ok=True)
+        self.local_remote_paths.append(str(target))
+        return target
 
     def checkout(self, ref: str) -> None:
         if ref in self._branches:

@@ -63,7 +63,7 @@ stable types crossing the seam are the aliases and value objects in
 | `pycadwork.persistence`     | Mirror the running model to a normalized SQL database and back — `Synchronizer` (`pull` / `push`), Table Data Gateways, a `UnitOfWork`, and frozen record DTOs.                                                                          |
 | `pycadwork.reporting`       | Bill of materials over a `ModelSnapshot` — `cutting_list`, `material_totals`, composable `by_*` grouping dimensions, and CSV writers. Pure functions; works on a live read or a pulled SQL store.                                        |
 | `pycadwork.rules`           | Validate a `ModelSnapshot` against declarative rules — `check`, composable built-in rule factories, `ElementRule` / `ModelRule`, severities, and a CSV writer. Pure functions reusing reporting's `SnapshotIndex`; works on a live read or a pulled SQL store. |
-| `pycadwork.versioning`      | A git workflow over the model — `ModelVersioning` (commit / branch / checkout / restore / push / pull) committing both a diffable per-table JSONL serialization (`SnapshotCodec`) and the binary `.3dc` (Git LFS), behind a `Repository` seam (`GitRepository`, GitPython lazy-loaded via the optional `git` extra). |
+| `pycadwork.versioning`      | A git workflow over the model — `ModelVersioning` (commit / branch / checkout / restore / push / pull) committing both a diffable per-table JSONL serialization (`SnapshotCodec`) and the binary `.3d` / `.3dc` (Git LFS), behind a `Repository` seam (`GitRepository`, GitPython lazy-loaded via the optional `git` extra). |
 
 The top-level namespace re-exports the full public surface, so you can write
 `from pycadwork import Beam, Wall, CoverBuilder, Point3D` without knowing the

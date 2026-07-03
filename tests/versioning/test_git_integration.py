@@ -24,7 +24,11 @@ from pycadwork.versioning._git import (
     is_lfs_available,
     open_repository,
 )
-from pycadwork.versioning._repository import NoRepositoryError, Repository
+from pycadwork.versioning._repository import (
+    NoRepositoryError,
+    Repository,
+    RepositoryError,
+)
 
 pytestmark = pytest.mark.skipif(
     not is_git_available(), reason="git executable / GitPython not available"
@@ -139,6 +143,29 @@ def test_delete_branch_removes_it(tmp_path: Path) -> None:
     assert "scratch" not in repo.branches()
 
 
+def test_read_file_at_ref_reads_without_checking_out(tmp_path: Path) -> None:
+    repo = init_repository(tmp_path)
+    _write_and_stage(repo, _snapshot("a"))
+    first = repo.commit("first")
+    _write_and_stage(repo, _snapshot("b"))
+    repo.commit("second")
+
+    # Reads the first commit's manifest without touching the checked-out tree.
+    text = repo.read_file_at_ref(first.sha, "manifest.json")
+    assert '"project_guid": "a"' in text
+    current_guid = SnapshotCodec().read_manifest(repo.working_dir).project_guid
+    assert current_guid == "b"  # the working tree itself was never switched
+
+
+def test_read_file_at_ref_unknown_path_raises(tmp_path: Path) -> None:
+    repo = init_repository(tmp_path)
+    _write_and_stage(repo, _snapshot())
+    info = repo.commit("snap")
+
+    with pytest.raises(RepositoryError):
+        repo.read_file_at_ref(info.sha, "does/not/exist.jsonl")
+
+
 def test_diff_reports_jsonl_changes_between_commits(tmp_path: Path) -> None:
     repo = init_repository(tmp_path)
     _write_and_stage(repo, _snapshot("a"))
@@ -176,8 +203,10 @@ def test_add_remote_is_idempotent_and_listed(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(not is_lfs_available(), reason="git-lfs not installed")
-def test_init_tracks_3dc_with_lfs(tmp_path: Path) -> None:
+def test_init_tracks_3d_and_3dc_with_lfs(tmp_path: Path) -> None:
+    # A cadwork model may be saved as either .3d or .3dc, so both are tracked.
     init_repository(tmp_path)
     attributes = (tmp_path / ".gitattributes").read_text()
+    assert "*.3d " in attributes or "*.3d\t" in attributes
     assert "*.3dc" in attributes
     assert "filter=lfs" in attributes

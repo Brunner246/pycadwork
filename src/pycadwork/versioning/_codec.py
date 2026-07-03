@@ -309,18 +309,24 @@ class SnapshotCodec:
         """
         path = Path(root) / MANIFEST_FILE
         try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
+            text = path.read_text(encoding="utf-8")
         except FileNotFoundError as exc:
             raise CodecError(f"no manifest at {path}") from exc
+        return self._parse_manifest_text(text, str(path))
+
+    def _parse_manifest_text(self, text: str, source: str) -> Manifest:
+        """Parse manifest JSON already read from disk or a git ref."""
+        try:
+            payload = json.loads(text)
         except json.JSONDecodeError as exc:
-            raise CodecError(f"malformed manifest at {path}: {exc}") from exc
+            raise CodecError(f"malformed manifest at {source}: {exc}") from exc
         if not isinstance(payload, dict):
-            raise CodecError(f"manifest at {path} is not a JSON object")
+            raise CodecError(f"manifest at {source} is not a JSON object")
 
         format_version = payload.get("format_version")
         if format_version != FORMAT_VERSION:
             raise CodecError(
-                f"unsupported format_version {format_version!r} at {path} "
+                f"unsupported format_version {format_version!r} at {source} "
                 f"(this build reads {FORMAT_VERSION})"
             )
         return Manifest(
@@ -360,23 +366,74 @@ class SnapshotCodec:
             text = path.read_text(encoding="utf-8")
         except FileNotFoundError:
             return []
+        return self._parse_table_text(text, spec, str(path))
+
+    def _parse_table_text(
+        self, text: str, spec: _TableSpec, source: str
+    ) -> list[object]:
+        """Parse one table's JSONL text already read from disk or a git ref."""
         records: list[object] = []
         for number, raw in enumerate(text.splitlines(), start=1):
             line = raw.strip()
             if not line:
                 continue
             if line.startswith(_CONFLICT_MARKERS):
-                raise CodecError(f"unresolved merge conflict in {path} (line {number})")
+                raise CodecError(
+                    f"unresolved merge conflict in {source} (line {number})"
+                )
             try:
                 obj = json.loads(line)
             except json.JSONDecodeError as exc:
-                raise CodecError(f"bad JSON in {path} (line {number}): {exc}") from exc
+                raise CodecError(
+                    f"bad JSON in {source} (line {number}): {exc}"
+                ) from exc
             if not isinstance(obj, dict):
-                raise CodecError(f"non-object JSON in {path} (line {number})")
+                raise CodecError(f"non-object JSON in {source} (line {number})")
             try:
                 records.append(spec.record_cls(**obj))
             except TypeError as exc:
                 raise CodecError(
-                    f"record mismatch in {path} (line {number}): {exc}"
+                    f"record mismatch in {source} (line {number}): {exc}"
                 ) from exc
         return records
+
+    def table_filenames(self) -> tuple[str, ...]:
+        """Every ``model/<table>.jsonl`` filename, in schema order.
+
+        Lets a caller fetch each table's raw text from an arbitrary source
+        (e.g. :meth:`~pycadwork.versioning.Repository.read_file_at_ref`) without
+        reaching into :data:`TABLE_SPECS` directly.
+        """
+        return tuple(spec.filename for spec in TABLE_SPECS)
+
+    def read_texts(
+        self, manifest_text: str, table_texts: dict[str, str]
+    ) -> ModelSnapshot:
+        """Assemble a :class:`ModelSnapshot` from raw text instead of disk.
+
+        ``table_texts`` maps a filename from :meth:`table_filenames` to its
+        JSONL text (an absent or empty entry is treated as an empty table).
+        This is what a pre-checkout preview needs: the caller fetches each
+        file's content at a ref (e.g. via ``git show <ref>:<path>``) without
+        ever checking it out, then reassembles the snapshot exactly like
+        :meth:`read` would from disk.
+        """
+        manifest = self._parse_manifest_text(manifest_text, "<manifest>")
+
+        fields_by_name: dict[str, Any] = {}
+        for spec in TABLE_SPECS:
+            text = table_texts.get(spec.filename, "")
+            records = (
+                self._parse_table_text(text, spec, f"<{spec.filename}>")
+                if text.strip()
+                else []
+            )
+            if spec.is_project:
+                fields_by_name["project"] = (
+                    records[0]
+                    if records
+                    else ProjectRecord(manifest.project_guid)  # type: ignore[arg-type]
+                )
+            else:
+                fields_by_name[spec.snapshot_field] = tuple(records)
+        return ModelSnapshot(**fields_by_name)
