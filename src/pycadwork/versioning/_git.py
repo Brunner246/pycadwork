@@ -70,7 +70,7 @@ def is_lfs_available() -> bool:
             check=True,
         )
         return True
-    except (OSError, subprocess.CalledProcessError):
+    except OSError, subprocess.CalledProcessError:
         return False
 
 
@@ -318,7 +318,7 @@ class GitRepository:
         try:
             commits = self._repo.iter_commits(max_count=max_count)
             return tuple(self._commit_info(c) for c in commits)
-        except (ValueError, self._git_error()):
+        except ValueError, self._git_error():
             # No commits yet (unborn branch).
             return ()
 
