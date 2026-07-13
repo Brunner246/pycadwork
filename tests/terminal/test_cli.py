@@ -11,7 +11,7 @@ from tests._fakes.launcher import FakeLauncher
 
 
 def test_launch_passes_translated_argv_and_returns_exit_code(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     launcher = FakeLauncher(exit_code=7)
     monkeypatch.setattr(
@@ -25,6 +25,22 @@ def test_launch_passes_translated_argv_and_returns_exit_code(
     assert launcher.calls == [
         (Path("ci_start.exe"), ["house.3d", "/EXE=exe_2026", "/PLUGIN=ExportBTL"])
     ]
+    err = capsys.readouterr().err
+    assert "launching:" in err  # echoed to stderr, not stdout
+    assert "exited with code 7" in err  # non-zero exit reported
+
+
+def test_successful_launch_is_quiet_on_stdout(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        "pycadwork.terminal.cli.find_ci_start", lambda explicit: Path("ci_start.exe")
+    )
+    code = main(["open", "house.3d"], launcher=FakeLauncher(exit_code=0))
+    assert code == 0
+    captured = capsys.readouterr()
+    assert captured.out == ""  # stdout stays clean
+    assert "launching:" in captured.err
 
 
 def test_dry_run_prints_and_does_not_launch(

@@ -224,3 +224,13 @@ cadwork open "C:\My Projects\house.3d" --workdir "C:\My Documents"
 
 Reach for `--dry-run` whenever you're unsure how a line will be translated — it
 prints the exact `ci_start.exe` command without executing it.
+
+## Output
+
+A real launch echoes the resolved command line to **stderr** (so **stdout** stays
+clean for piping) and reports a non-zero exit code; on success it is otherwise
+quiet — `ci_start.exe` hands off to cadwork and returns immediately:
+
+```
+launching: D:\cadwork.dir\ci_start.exe "C:\Users\...\house.3d"
+```

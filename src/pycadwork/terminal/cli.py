@@ -207,6 +207,8 @@ def main(
 ) -> int:
     """Parse ``argv``, translate, and launch cadwork (or print with ``--dry-run``).
 
+    On a real launch the resolved command line is echoed to ``stderr`` (so
+    ``stdout`` stays clean for piping) and a non-zero exit code is reported.
     Returns cadwork's exit code, ``0`` for a dry run, or ``2`` on a usage error.
     """
     parser = build_parser()
@@ -232,4 +234,9 @@ def main(
         return 2
 
     launcher = launcher or SubprocessLauncher()
-    return launcher.launch(executable, command.render_argv())
+    argv_out = command.render_argv()
+    print(f"launching: {executable} {' '.join(argv_out)}", file=sys.stderr)
+    exit_code = launcher.launch(executable, argv_out)
+    if exit_code != 0:
+        print(f"ci_start.exe exited with code {exit_code}", file=sys.stderr)
+    return exit_code
