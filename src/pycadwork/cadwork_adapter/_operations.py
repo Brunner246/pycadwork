@@ -93,6 +93,28 @@ class OperationsAdapter:
             list(hard_eids), list(soft_eids)
         )
 
+    def cut_cross_lap(
+        self,
+        eids: list[ElementId],
+        depth: float,
+        clearance_base: float,
+        clearance_side: float,
+        drilling_count: int,
+        drilling_diameter: float,
+        drilling_tolerance: float,
+    ) -> None:
+        import element_controller
+
+        element_controller.cut_cross_lap(
+            list(eids),
+            depth,
+            clearance_base,
+            clearance_side,
+            drilling_count,
+            drilling_diameter,
+            drilling_tolerance,
+        )
+
     def cut_element_with_processing_group(
         self, soft_eid: ElementId, processing_eid: ElementId
     ) -> None:

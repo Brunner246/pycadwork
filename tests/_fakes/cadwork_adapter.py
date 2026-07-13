@@ -122,6 +122,18 @@ def _tup(p: Point3D) -> PointTuple:
     return (p.x, p.y, p.z)
 
 
+def _newell_normal(pts: list[PointTuple]) -> PointTuple:
+    """Unit normal of a planar polygon via Newell's method (winding-aware)."""
+    nx = ny = nz = 0.0
+    n = len(pts)
+    for i in range(n):
+        cur, nxt = pts[i], pts[(i + 1) % n]
+        nx += (cur[1] - nxt[1]) * (cur[2] + nxt[2])
+        ny += (cur[2] - nxt[2]) * (cur[0] + nxt[0])
+        nz += (cur[0] - nxt[0]) * (cur[1] + nxt[1])
+    return _normalize((nx, ny, nz))
+
+
 def _segment_aabb_hits(
     start: PointTuple, end: PointTuple, box_min: PointTuple, box_max: PointTuple
 ) -> list[PointTuple]:
@@ -272,6 +284,10 @@ class FakeState:
     overmeasure_calls: list[tuple[list[ElementId], list[ElementId]]] = field(
         default_factory=list
     )
+    # cross-lap: (eids, depth, clearance_base, clearance_side, count, dia, tol)
+    cross_lap_calls: list[
+        tuple[list[ElementId], float, float, float, int, float, float]
+    ] = field(default_factory=list)
     processing_group_calls: list[tuple[ElementId, ElementId]] = field(
         default_factory=list
     )
@@ -461,6 +477,34 @@ class FakeElementsAdapter:
         el.volume = section.width * section.thickness * frame.length
         return el.eid
 
+    def create_polygon_panel(
+        self,
+        vertices: list[Point3D],
+        thickness: float,
+        x_local_direction: Point3D,
+        z_local_direction: Point3D,
+    ) -> ElementId:
+        # cwapi3d extrudes the polygon along x_local_direction (the normal) by
+        # thickness; z_local_direction is the in-plane orientation. Mirror its
+        # right-handed frame here: yl = zl x xl so that xl x yl = zl.
+        snap = ElementTypeSnapshot(is_panel=True)
+        el = self._state.alloc(snap)
+        pts = [_tup(p) for p in vertices]
+        # Mirror the real seam: cadwork needs a closed loop, so the adapter
+        # appends the first vertex again unless the caller already closed it.
+        if len(pts) >= 3 and pts[0] != pts[-1]:
+            pts = pts + [pts[0]]
+        el.surface_points = pts
+        if pts:
+            el.p1 = pts[0]
+        xl = _normalize((x_local_direction.x, x_local_direction.y, x_local_direction.z))
+        zl = _normalize((z_local_direction.x, z_local_direction.y, z_local_direction.z))
+        el.xl = xl
+        el.zl = zl
+        el.yl = _normalize(_cross(zl, xl))
+        el.height = thickness
+        return el.eid
+
     def create_drilling_points(self, diameter: float, axis: Segment) -> ElementId:
         snap = ElementTypeSnapshot(is_drilling=True)
         el = self._state.alloc(snap)
@@ -557,6 +601,18 @@ class FakeElementsAdapter:
         el = self._state.alloc(snap)
         src = self._state.elements[surface_eid]
         el.p1 = src.p1
+        el.length = math.sqrt(vector.x**2 + vector.y**2 + vector.z**2)
+        return el.eid
+
+    def extrude_surface_to_panel_vector(
+        self, surface_eid: ElementId, vector: Point3D
+    ) -> ElementId:
+        snap = ElementTypeSnapshot(is_panel=True)
+        el = self._state.alloc(snap)
+        src = self._state.elements[surface_eid]
+        el.p1 = src.p1
+        el.surface_points = list(src.surface_points)
+        el.height = math.sqrt(vector.x**2 + vector.y**2 + vector.z**2)
         el.length = math.sqrt(vector.x**2 + vector.y**2 + vector.z**2)
         return el.eid
 
@@ -834,7 +890,16 @@ class FakeGeometryAdapter:
         ]
 
     def get_element_facets(self, eid: ElementId) -> FacetListLike:
-        return _FakeFacetList()
+        # A surface created from a polygon is one planar facet; derive its
+        # outer loop and normal (Newell's method) from the stored points so a
+        # surface's ``.geometry.brep`` round-trips through the gridshell code.
+        el = self._state.elements[eid]
+        pts = el.surface_points
+        if len(pts) < 3:
+            return _FakeFacetList()
+        verts = _FakeVertexList([_FakePoint(*p) for p in pts])
+        normal = _newell_normal(pts)
+        return _FakeFacetList([(verts, [], _FakePoint(*normal))])
 
 
 class FakeGroupingAdapter:
@@ -1150,6 +1215,28 @@ class FakeOperationsAdapter:
         self, hard_eids: list[ElementId], soft_eids: list[ElementId]
     ) -> None:
         self._state.overmeasure_calls.append((list(hard_eids), list(soft_eids)))
+
+    def cut_cross_lap(
+        self,
+        eids: list[ElementId],
+        depth: float,
+        clearance_base: float,
+        clearance_side: float,
+        drilling_count: int,
+        drilling_diameter: float,
+        drilling_tolerance: float,
+    ) -> None:
+        self._state.cross_lap_calls.append(
+            (
+                list(eids),
+                depth,
+                clearance_base,
+                clearance_side,
+                drilling_count,
+                drilling_diameter,
+                drilling_tolerance,
+            )
+        )
 
     def cut_element_with_processing_group(
         self, soft_eid: ElementId, processing_eid: ElementId

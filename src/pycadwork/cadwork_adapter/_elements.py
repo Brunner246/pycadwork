@@ -120,6 +120,38 @@ class ElementsAdapter:
             )
         )
 
+    def create_polygon_panel(
+        self,
+        vertices: Sequence[Point3D],
+        thickness: float,
+        x_local_direction: Point3D,
+        z_local_direction: Point3D,
+    ) -> ElementId:
+        # ``z_local_direction`` is the panel normal (the thickness/extrusion
+        # axis); ``x_local_direction`` is an in-plane orientation vector. The
+        # vertices must wind CCW about the normal, and the loop is closed below
+        # (an open loop yields no/invalid geometry).
+        import cadwork
+        import element_controller
+
+        polygon = cadwork.vertex_list()
+        for p in vertices:
+            polygon.append(_pt(cadwork, p))
+        # cadwork's polygon-panel builder needs a *closed* loop (see the docs'
+        # "vertices.append(vertices[0])  # Close the polygon"); an open loop
+        # yields no face and an invalid id with no error. Close it here unless
+        # the caller already did.
+        if len(vertices) >= 3 and vertices[0] != vertices[-1]:
+            polygon.append(_pt(cadwork, vertices[0]))
+        return ElementId(
+            element_controller.create_polygon_panel(
+                polygon,
+                thickness,
+                _pt(cadwork, x_local_direction),
+                _pt(cadwork, z_local_direction),
+            )
+        )
+
     def create_drilling_points(self, diameter: float, axis: Segment) -> ElementId:
         import cadwork
         import element_controller
@@ -224,6 +256,18 @@ class ElementsAdapter:
 
         return ElementId(
             element_controller.extrude_surface_to_auxiliary_vector(
+                surface_eid, _pt(cadwork, vector)
+            )
+        )
+
+    def extrude_surface_to_panel_vector(
+        self, surface_eid: ElementId, vector: Point3D
+    ) -> ElementId:
+        import cadwork
+        import element_controller
+
+        return ElementId(
+            element_controller.extrude_surface_to_panel_vector(
                 surface_eid, _pt(cadwork, vector)
             )
         )

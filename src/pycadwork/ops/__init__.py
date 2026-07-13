@@ -9,7 +9,8 @@ say what happens to the model and operates on :class:`Element` objects:
   ``difference(targets, cutters)`` reads as ``targets − cutters``, the flip
   to cwapi3d's cutters-first order happens here.
 * :func:`cut_with_plane`, :func:`slice_with_plane`, :func:`cut_with_miter`,
-  :func:`cut_with_overmeasure`, :func:`cut_with_processing_group` — cuts.
+  :func:`cut_with_overmeasure`, :func:`cut_with_processing_group`,
+  :func:`cut_cross_lap` — cuts.
 * :func:`extract_cutting_bodies` / :func:`cutting_bodies` /
   :func:`delete_processes` / :func:`delete_end_types` — process management.
   ``cutting_bodies`` is a context manager around the Ctrl+D extraction that
@@ -24,6 +25,7 @@ of them.
 from __future__ import annotations
 
 from pycadwork.ops.boolean import (
+    cut_cross_lap,
     cut_with_miter,
     cut_with_overmeasure,
     cut_with_plane,
@@ -43,6 +45,7 @@ from pycadwork.ops.processes import (
 
 __all__ = [
     "CuttingBodyExtraction",
+    "cut_cross_lap",
     "cut_with_miter",
     "cut_with_overmeasure",
     "cut_with_plane",

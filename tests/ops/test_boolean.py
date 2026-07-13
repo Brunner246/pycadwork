@@ -137,3 +137,21 @@ def test_cut_with_processing_group_records_args(
     target, processing = _beam(), _beam()
     ops.cut_with_processing_group(target, processing)
     assert fake_cadwork.state.processing_group_calls == [(target.id, processing.id)]
+
+
+def test_cut_cross_lap_forwards_geometry_and_bolt_params(
+    fake_cadwork: FakeCadworkAdapter,
+):
+    a, b = _beam(), _beam()
+    ops.cut_cross_lap(
+        [a, b],
+        depth=100.0,
+        clearance_base=1.0,
+        clearance_side=2.0,
+        drilling_count=2,
+        drilling_diameter=12.0,
+        drilling_tolerance=0.5,
+    )
+    assert fake_cadwork.state.cross_lap_calls == [
+        ([a.id, b.id], 100.0, 1.0, 2.0, 2, 12.0, 0.5)
+    ]

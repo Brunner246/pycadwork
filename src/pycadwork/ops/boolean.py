@@ -93,6 +93,34 @@ def cut_with_overmeasure(
     cadwork.operations.cut_elements_with_overmeasure(cutter_ids, target_ids)
 
 
+def cut_cross_lap(
+    elements: Element | Iterable[Element],
+    *,
+    depth: float,
+    clearance_base: float = 0.0,
+    clearance_side: float = 0.0,
+    drilling_count: int = 0,
+    drilling_diameter: float = 0.0,
+    drilling_tolerance: float = 0.0,
+) -> None:
+    """Cut a housed cross-lap between the crossing ``elements``.
+
+    cadwork computes the interlocking half-depth housings from where the
+    elements cross; ``depth`` is the housing depth (typically half the member
+    height). When ``drilling_count`` is positive, that many fastener holes are
+    drilled through the joint.
+    """
+    cadwork.operations.cut_cross_lap(
+        _ids(_as_elements(elements)),
+        depth,
+        clearance_base,
+        clearance_side,
+        drilling_count,
+        drilling_diameter,
+        drilling_tolerance,
+    )
+
+
 def cut_with_processing_group(target: Element, processing: Element) -> None:
     """Cut ``target`` with the processing group ``processing``."""
     cadwork.operations.cut_element_with_processing_group(target.id, processing.id)

@@ -16,6 +16,8 @@ Modules:
 * :mod:`examples.elements`             — Beam / Plate / Drilling: create, read, write-back
 * :mod:`examples.document_and_project` — the Document repository and ProjectInfo
 * :mod:`examples.covers`               — Wall / Slab / Roof, CoverBuilder, discover_covers
+* :mod:`examples.gridshell_pavilion`   — build a gridshell pavilion (ribs or panels) from a surface
+* :mod:`examples.sphere_pavilion`      — build a geodesic timber sphere pavilion (frame + cladding)
 * :mod:`examples.containers_and_mep`   — Container containment and MEP runs
 * :mod:`examples.connectivity`         — find_connected and the connection graph
 * :mod:`examples.collision`            — clash / contact / near-miss / clearance checks
@@ -62,6 +64,8 @@ MODULES: tuple[str, ...] = (
     "elements",
     "document_and_project",
     "covers",
+    "gridshell_pavilion",
+    "sphere_pavilion",
     "containers_and_mep",
     "connectivity",
     "collision",
