@@ -43,6 +43,11 @@ the [project README](../README.md) for the overview and quick start.
 - [Utilities](utilities.md) — `DisplayRefreshScope`, `batch_apply`, and the
   `auto_*` decorators.
 
+## Command line
+
+- [The `cadwork` terminal wrapper](terminal.md) — a modern CLI over cadwork's
+  `ci_start.exe` slash arguments; how to install it on `PATH` for PowerShell/cmd.
+
 ## Contributing
 
 - [Testing](testing.md) — the fake-adapter fixture and how to run the suite.

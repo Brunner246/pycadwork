@@ -15,6 +15,9 @@ dependencies = [
 cadwork = ["cwapi3d>=33"]            # only inside cadwork's Python
 git = ["GitPython>=3.1"]             # the versioning git backend (often absent in cadwork)
 
+[project.scripts]
+cadwork = "pycadwork.terminal.cli:main"
+
 [project.urls]
 Repository = "https://github.com/Brunner246/pycadwork"
 
