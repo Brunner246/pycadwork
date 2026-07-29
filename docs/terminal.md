@@ -189,14 +189,26 @@ list.
 | `update [2d\|all\|all-force]` | Live-update modules (default `all`) | `cadwork update all --silent --maximized` |
 | `print FILE` | Print a `.2d` (frames) or `.txt` file | `cadwork print plan.2d --plotter A` |
 
-`open` options map to `/EXE` `/PLUGIN` `/RUNPROGRAM` `/USP` `/CATDIR` `/WORKDIR`
-— use `--plugin NAME` for a plugin in the `API.x64` folder, or `--run-program
-PATH` for an arbitrary Python script:
+`open` options map to `/EXE` `/PLUGIN` `/RUNPROGRAM` `/NO-GUI` `/USP` `/CATDIR`
+`/WORKDIR`:
+
+| CLI option | cadwork flag | Notes |
+|------------|--------------|-------|
+| `--plugin NAME` | `/PLUGIN` | Plugin folder name in `API.x64` |
+| `--run-program PATH` | `/RUNPROGRAM` | Full path to a `.py` or `.dll` anywhere (not only `API.x64`) |
+| `--no-gui` | `/NO-GUI` | Headless; requires `--plugin` or `--run-program` |
 
 ```powershell
 cadwork open .\Downloads\test_elements_walls.3d --exe D:\cadwork.dir\exe_2026 `
     --run-program C:\Users\MichaelBrunner\Downloads\export_elements_jsonl.py
 # runs: ci_start.exe ".\Downloads\test_elements_walls.3d" /EXE=D:\cadwork.dir\exe_2026 /RUNPROGRAM="C:\Users\MichaelBrunner\Downloads\export_elements_jsonl.py"
+
+# headless automation (no GUI window)
+cadwork open house.3d --run-program C:\my_plugins\export.py --no-gui
+# runs: ci_start.exe "house.3d" /RUNPROGRAM="C:\my_plugins\export.py" /NO-GUI
+
+cadwork open house.3d --plugin MyExport --no-gui
+# runs: ci_start.exe "house.3d" /PLUGIN=MyExport /NO-GUI
 ```
 
 `print` uses

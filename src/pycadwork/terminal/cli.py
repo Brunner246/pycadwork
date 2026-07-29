@@ -73,11 +73,26 @@ def _add_open(subparsers, common: argparse.ArgumentParser) -> None:
     )
     p.add_argument("file", help="the model file to open (.3d / .3dc)")
     p.add_argument("--exe", metavar="DIR", help="cadwork version folder (/EXE)")
-    p.add_argument("--plugin", metavar="NAME", help="Python plugin to run (/PLUGIN)")
+    p.add_argument(
+        "--plugin",
+        metavar="NAME",
+        help="plugin folder name in API.x64 to run after open (/PLUGIN)",
+    )
     p.add_argument(
         "--run-program",
-        metavar="SCRIPT",
-        help="path to a Python script to run after opening (/RUNPROGRAM)",
+        metavar="PATH",
+        help=(
+            "path to a .py or .dll plugin to run after open from any directory "
+            "(/RUNPROGRAM); does not need to be registered in API.x64"
+        ),
+    )
+    p.add_argument(
+        "--no-gui",
+        action="store_true",
+        help=(
+            "run headless with no GUI window (/NO-GUI); requires --plugin or "
+            "--run-program"
+        ),
     )
     p.add_argument("--usp", metavar="DIR", help="userprofile folder (/USP)")
     p.add_argument("--catdir", metavar="DIR", help="catalog folder (/CATDIR)")
