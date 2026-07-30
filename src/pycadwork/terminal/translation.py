@@ -53,6 +53,13 @@ def _open(args: argparse.Namespace) -> CadworkCommand:
         tokens.append(f"/PLUGIN={args.plugin}")
     if args.run_program:
         tokens.append(f"/RUNPROGRAM={args.run_program}")
+    if args.no_gui:
+        if not (args.plugin or args.run_program):
+            raise InvalidArgumentError(
+                "--no-gui requires --plugin or --run-program "
+                "(cadwork /NO-GUI only applies when running a plugin)"
+            )
+        tokens.append("/NO-GUI")
     if args.usp:
         tokens.append(f"/USP={args.usp}")
     if args.catdir:

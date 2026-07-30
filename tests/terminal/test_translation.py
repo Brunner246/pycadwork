@@ -41,6 +41,24 @@ def _command(argv: list[str]):
             ],
         ),
         (
+            [
+                "open",
+                "house.3d",
+                "--run-program",
+                r"C:\my_plugins\export.py",
+                "--no-gui",
+            ],
+            [
+                "house.3d",
+                r"/RUNPROGRAM=C:\my_plugins\export.py",
+                "/NO-GUI",
+            ],
+        ),
+        (
+            ["open", "house.3d", "--plugin", "MyExport", "--no-gui"],
+            ["house.3d", "/PLUGIN=MyExport", "/NO-GUI"],
+        ),
+        (
             ["install", "--silent", "--desktop-shortcut"],
             ["/INSTALL", "/SILENT", "/SHORTCUT_ON_DESKTOP"],
         ),
@@ -106,6 +124,12 @@ def test_display_quotes_licence_value() -> None:
 def test_print_frames_require_a_2d_file() -> None:
     args = build_parser().parse_args(["print", "notes.txt", "--plotter", "A"])
     with pytest.raises(InvalidArgumentError):
+        build_command(args)
+
+
+def test_no_gui_requires_plugin_or_run_program() -> None:
+    args = build_parser().parse_args(["open", "house.3d", "--no-gui"])
+    with pytest.raises(InvalidArgumentError, match="--no-gui requires"):
         build_command(args)
 
 
