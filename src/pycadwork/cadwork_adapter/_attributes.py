@@ -2,7 +2,7 @@
 
 Adding a new attribute means three steps:
   1. Add the get/set pair here.
-  2. Mirror it on ``FakeAttributesAdapter`` in ``tests/_fakes/cadwork_adapter.py``.
+  2. Mirror it on ``FakeAttributesAdapter`` in ``pycadwork/testing/cadwork_adapter.py``.
   3. Expose it as a property/setter on :class:`pycadwork.element.components.Attributes`.
 """
 

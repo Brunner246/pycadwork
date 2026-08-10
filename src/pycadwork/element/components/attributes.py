@@ -9,7 +9,7 @@ attributes can't be expressed as a bare property, so they stay methods.
 
 Adding a new attribute is a three-step recipe:
   1. Add the get/set pair on ``AttributesAdapter`` in ``cadwork_adapter/_attributes.py``.
-  2. Mirror it on ``FakeAttributesAdapter`` in ``tests/_fakes/cadwork_adapter.py``.
+  2. Mirror it on ``FakeAttributesAdapter`` in ``pycadwork/testing/cadwork_adapter.py``.
   3. Add the property (and ``@<name>.setter``) here.
 
 ``color`` is the one exception: in cwapi3d it is a *visualization* concern, not an

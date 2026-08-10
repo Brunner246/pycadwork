@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from pycadwork import cadwork_adapter as _adapter_module
-from tests._fakes.cadwork_adapter import FakeCadworkAdapter
+from pycadwork.testing import FakeCadworkAdapter
 
 
 @pytest.fixture(autouse=True)

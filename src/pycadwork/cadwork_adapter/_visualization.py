@@ -6,7 +6,7 @@ gets its own sub-adapter here rather than sitting on ``AttributesAdapter``.
 
 Adding a new visual property means three steps:
   1. Add the get/set pair here.
-  2. Mirror it on ``FakeVisualizationAdapter`` in ``tests/_fakes/cadwork_adapter.py``.
+  2. Mirror it on ``FakeVisualizationAdapter`` in ``pycadwork/testing/cadwork_adapter.py``.
   3. Expose it on the OOP layer (e.g. :class:`pycadwork.element.components.Attributes`).
 """
 

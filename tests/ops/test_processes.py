@@ -6,7 +6,7 @@ import pytest
 
 from pycadwork import AxisPoints, Beam, Point3D, RectSection, ops
 from pycadwork.ops import cutting_bodies, extract_cutting_bodies
-from tests._fakes.cadwork_adapter import FakeCadworkAdapter
+from pycadwork.testing import FakeCadworkAdapter
 
 
 def _beam() -> Beam:

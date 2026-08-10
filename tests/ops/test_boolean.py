@@ -18,7 +18,7 @@ from pycadwork import (
     Vector3D,
     ops,
 )
-from tests._fakes.cadwork_adapter import FakeCadworkAdapter
+from pycadwork.testing import FakeCadworkAdapter
 
 
 def _beam() -> Beam:

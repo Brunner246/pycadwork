@@ -11,7 +11,7 @@ adds, it does not replace — so a caller wanting a clean restore deletes the li
 elements first (see :meth:`pycadwork.document.Document.reload_from`).
 
 Adding a new call here means mirroring it on ``FakeFileAdapter`` in
-``tests/_fakes/cadwork_adapter.py`` and wiring the ``file`` slot in
+``pycadwork/testing/cadwork_adapter.py`` and wiring the ``file`` slot in
 ``tests/conftest.py``.
 """
 

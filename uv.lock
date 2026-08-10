@@ -164,7 +164,7 @@ requires-dist = [
     { name = "gitpython", marker = "extra == 'git'", specifier = ">=3.1" },
     { name = "rtree", specifier = ">=1.4.1" },
 ]
-provides-extras = ["cadwork", "git"]
+provides-extras = ["cadwork", "git", "testing"]
 
 [package.metadata.requires-dev]
 dev = [

@@ -6,7 +6,7 @@ its base plane. The OOP layer reads these to classify elements by height and
 writes the resulting assignment back.
 
 Adding a new call here means mirroring it on ``FakeBimAdapter`` in
-``tests/_fakes/cadwork_adapter.py`` and wiring the ``bim`` slot in
+``pycadwork/testing/cadwork_adapter.py`` and wiring the ``bim`` slot in
 ``tests/conftest.py``.
 """
 

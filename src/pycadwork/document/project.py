@@ -9,7 +9,7 @@ carries no id. All reads are live queries against the active backend.
 Adding a new project field is the same three-step recipe as for element
 attributes:
   1. Add the get/set pair on ``ProjectAdapter`` in ``cadwork_adapter/_project.py``.
-  2. Mirror it on ``FakeProjectAdapter`` in ``tests/_fakes/cadwork_adapter.py``.
+  2. Mirror it on ``FakeProjectAdapter`` in ``pycadwork/testing/cadwork_adapter.py``.
   3. Add the property / setter here.
 """
 

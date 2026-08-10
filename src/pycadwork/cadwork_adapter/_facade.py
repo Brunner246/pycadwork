@@ -3,7 +3,7 @@
 The OOP layer talks to the singleton ``cadwork`` instance exported from the
 package, e.g. ``cadwork.attributes.get_name(eid)``. Each sub-adapter owns one
 slice of the cwapi3d surface; adding a new call means adding it to the right
-sub-adapter (and its fake counterpart in ``tests/_fakes``).
+sub-adapter (and its fake counterpart in :mod:`pycadwork.testing`).
 """
 
 from __future__ import annotations

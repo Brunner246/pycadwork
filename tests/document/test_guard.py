@@ -15,7 +15,7 @@ from pycadwork.document import (
     is_3d_document,
     require_3d_document,
 )
-from tests._fakes.cadwork_adapter import FakeCadworkAdapter
+from pycadwork.testing import FakeCadworkAdapter
 
 
 def test_default_fake_is_a_3d_document(fake_cadwork: FakeCadworkAdapter):
