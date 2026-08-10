@@ -1,0 +1,240 @@
+"""Geometry components attached to every :class:`Element`.
+
+Four classes, walked by inheritance:
+
+* :class:`Geometry` — bulk queries shared by every element (volume, weight,
+  COG, AABB, BRep). Bound on bare ``Element`` and :class:`Surface`.
+* :class:`LinearGeometry` — adds axis points, frame, length/width/height,
+  axis-derived composite value objects, and the oriented bounding box.
+  ``length`` / ``width`` / ``height`` are read/write properties; assigning
+  writes the real dimension straight back to the model. Bound on
+  :class:`LinearElement` (Beam, Drilling, Line).
+* :class:`OrientedGeometry` — adds the :attr:`thickness` semantic alias for
+  the backend's height channel (read/write). Bound on
+  :class:`OrientedElement` (Plate).
+* :class:`NodeGeometry` — adds the single :attr:`position` accessor; bulk
+  queries still work but report degenerate values.
+"""
+
+from __future__ import annotations
+
+from pycadwork.cadwork_adapter import cadwork
+from pycadwork.cadwork_adapter.types import ElementId
+from pycadwork.geometry import (
+    AxisAlignedBoundingBox,
+    AxisFrame,
+    AxisPoints,
+    Brep,
+    Frame3D,
+    OrientedBoundingBox,
+    Point3D,
+    Vector3D,
+    aabb_from_points,
+    brep_from_facet_list,
+    point3d_from_tuple,
+)
+from pycadwork.geometry.spatial_index import BoundingRegion3D
+from pycadwork.value_types import (
+    Diameter,
+    Height,
+    Length,
+    Radius,
+    Thickness,
+    Volume,
+    Weight,
+    Width,
+)
+
+
+class Geometry:
+    """Whole-element queries: volume, weight, COG, AABB, BRep."""
+
+    __slots__ = ("_id",)
+
+    def __init__(self, element_id: ElementId) -> None:
+        self._id = element_id
+
+    @property
+    def volume(self) -> Volume:
+        return Volume(cadwork.geometry.get_volume(self._id))
+
+    @property
+    def weight(self) -> Weight:
+        return Weight(cadwork.geometry.get_weight(self._id))
+
+    @property
+    def center_of_gravity(self) -> Point3D:
+        return point3d_from_tuple(cadwork.geometry.get_center_of_gravity(self._id))
+
+    @property
+    def aabb(self) -> AxisAlignedBoundingBox:
+        return aabb_from_points(cadwork.geometry.get_element_vertices(self._id))
+
+    @property
+    def brep(self) -> Brep:
+        return brep_from_facet_list(cadwork.geometry.get_element_facets(self._id))
+
+    @property
+    def bounding_region(self) -> BoundingRegion3D:
+        """Tightest *native* bounding region this geometry can offer.
+
+        Bare elements (and nodes, surfaces) only carry a world-aligned box,
+        so this is the :attr:`aabb`. :class:`LinearGeometry` overrides it with
+        the tighter frame-aligned :attr:`obb`. Returning the native region
+        (rather than always lifting to OBB) keeps it lossless; callers convert
+        to the form they need.
+        """
+        return self.aabb
+
+
+class LinearGeometry(Geometry):
+    """Axis-anchored geometry: points, frame, length, composites, OBB."""
+
+    __slots__ = ()
+
+    # ---- raw points ----
+
+    @property
+    def start_point(self) -> Point3D:
+        return point3d_from_tuple(cadwork.geometry.get_p1(self._id))
+
+    @property
+    def end_point(self) -> Point3D:
+        return point3d_from_tuple(cadwork.geometry.get_p2(self._id))
+
+    @property
+    def third_point(self) -> Point3D:
+        return point3d_from_tuple(cadwork.geometry.get_p3(self._id))
+
+    # ---- frame ----
+
+    @property
+    def frame(self) -> Frame3D:
+        g = cadwork.geometry
+        origin = point3d_from_tuple(g.get_p1(self._id))
+        xl = g.get_xl(self._id)
+        yl = g.get_yl(self._id)
+        zl = g.get_zl(self._id)
+        return Frame3D(
+            origin,
+            Vector3D(xl[0], xl[1], xl[2]),
+            Vector3D(yl[0], yl[1], yl[2]),
+            Vector3D(zl[0], zl[1], zl[2]),
+        )
+
+    # ---- scalars ----
+
+    @property
+    def length(self) -> Length:
+        return Length(cadwork.geometry.get_length(self._id))
+
+    @length.setter
+    def length(self, length: float) -> None:
+        cadwork.geometry.set_length([self._id], length)
+
+    @property
+    def width(self) -> Width:
+        return Width(cadwork.geometry.get_width(self._id))
+
+    @width.setter
+    def width(self, width: float) -> None:
+        cadwork.geometry.set_width([self._id], width)
+
+    @property
+    def height(self) -> Height:
+        return Height(cadwork.geometry.get_height(self._id))
+
+    @height.setter
+    def height(self, height: float) -> None:
+        cadwork.geometry.set_height([self._id], height)
+
+    # ---- composite value objects ----
+
+    @property
+    def axis_points(self) -> AxisPoints:
+        """The three points that define this element's axis frame."""
+        return AxisPoints(self.start_point, self.end_point, self.third_point)
+
+    @property
+    def axis_frame(self) -> AxisFrame:
+        """The vector form of the axis: origin + x/z + length."""
+        f = self.frame
+        return AxisFrame(f.origin, f.axis_x, f.axis_z, self.length)
+
+    # ---- oriented bounding box ----
+
+    @property
+    def obb(self) -> OrientedBoundingBox:
+        """Tight OBB aligned to this element's local frame."""
+        verts = cadwork.geometry.get_element_vertices(self._id)
+        points = [point3d_from_tuple(t) for t in verts]
+        return OrientedBoundingBox(points, self.frame)
+
+    @property
+    def bounding_region(self) -> BoundingRegion3D:
+        """Tightest native region for an axis-anchored element: the frame OBB."""
+        return self.obb
+
+
+class OrientedGeometry(LinearGeometry):
+    """Adds the ``thickness`` alias for panel-like elements."""
+
+    __slots__ = ()
+
+    @property
+    def thickness(self) -> Thickness:
+        """Panel thickness — semantic alias for the backend's ``height`` channel."""
+        return Thickness(cadwork.geometry.get_height(self._id))
+
+    @thickness.setter
+    def thickness(self, thickness: float) -> None:
+        cadwork.geometry.set_height([self._id], thickness)
+
+
+class CircularGeometry(LinearGeometry):
+    """Axis geometry whose cross-section is a single diameter (a pipe).
+
+    A circular run has no rectangular cross-section -- the backend carries the
+    diameter in *both* its width and height channels. Those channels are
+    therefore suppressed here in favour of the semantic :attr:`diameter` /
+    :attr:`radius` surface; reading ``width`` or ``height`` raises
+    :class:`AttributeError`.
+    """
+
+    __slots__ = ()
+
+    @property
+    def diameter(self) -> Diameter:
+        return Diameter(cadwork.geometry.get_width(self._id))
+
+    @diameter.setter
+    def diameter(self, diameter: float) -> None:
+        # Keep both backend channels in step — a circle is diameter on each.
+        cadwork.geometry.set_width([self._id], diameter)
+        cadwork.geometry.set_height([self._id], diameter)
+
+    @property
+    def radius(self) -> Radius:
+        return Radius(self.diameter / 2.0)
+
+    @property
+    def width(self) -> Width:
+        raise AttributeError(
+            "CircularGeometry has no rectangular 'width'; use 'diameter' or 'radius'"
+        )
+
+    @property
+    def height(self) -> Height:
+        raise AttributeError(
+            "CircularGeometry has no rectangular 'height'; use 'diameter' or 'radius'"
+        )
+
+
+class NodeGeometry(Geometry):
+    """Geometry for a positioned point: a single :attr:`position` accessor."""
+
+    __slots__ = ()
+
+    @property
+    def position(self) -> Point3D:
+        return point3d_from_tuple(cadwork.geometry.get_p1(self._id))

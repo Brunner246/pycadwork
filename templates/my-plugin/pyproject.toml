@@ -1,0 +1,30 @@
+[project]
+name = "my-plugin"
+version = "0.1.0"
+description = "A cadwork plugin built on pycadwork"
+requires-python = ">=3.14"          # pycadwork requires 3.14+ (cadwork's python314)
+dependencies = [
+    # The [cadwork] extra pulls cwapi3d so your IDE can resolve cwapi3d types.
+    # Drop the extra (use plain "pycadwork") if you never import cwapi3d
+    # directly — pycadwork's seam means you usually don't, and you still get
+    # full autocomplete for the pycadwork API plus rtree.
+    "pycadwork[cadwork]",
+]
+
+[tool.uv]
+# This is a plugin *script* run inside cadwork, not a distributable package, so
+# uv should not try to build it. `uv sync` just provisions the venv + deps.
+package = false
+
+[tool.uv.sources]
+# pycadwork is not on PyPI yet, so point uv at a checkout. This path is relative
+# to THIS project directory; the default assumes pycadwork sits beside it:
+#     <parent>/pycadwork    <- the pycadwork checkout
+#     <parent>/my-plugin    <- this project
+# editable = true means edits in the pycadwork checkout show up live in your IDE.
+pycadwork = { path = "../pycadwork", editable = true }
+# Or pin to the repo so it resolves on any machine (no local checkout needed):
+# pycadwork = { git = "https://github.com/Brunner246/pycadwork", branch = "main" }
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
