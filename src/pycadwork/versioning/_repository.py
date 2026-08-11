@@ -67,14 +67,23 @@ class MergeConflictError(RepositoryError):
     """A pull/merge produced conflicts; surfaced, never auto-resolved."""
 
 
+class DirtyWorkingTreeError(RepositoryError):
+    """Live model has uncommitted edits vs the checked-out committed snapshot.
+
+    Raised by :class:`~pycadwork.versioning.ModelVersioning` when a model-loading
+    operation would discard those edits and ``force=False``. Distinct from git
+    index dirtiness (:meth:`Repository.is_dirty` / :class:`RepoStatus.is_dirty`).
+    """
+
+
 @runtime_checkable
 class Repository(Protocol):
     """The narrow git port the versioning facade depends on.
 
     Implementations carry out each operation against a real or fake repository;
     the facade never reaches past this surface. ``checkout`` switches
-    working-tree files only — bringing a version into the live cadwork model is a
-    separate, explicit facade step.
+    working-tree files only — bringing a version into the live cadwork model is
+    facade policy (see :class:`~pycadwork.versioning.ModelVersioning`).
     """
 
     @property

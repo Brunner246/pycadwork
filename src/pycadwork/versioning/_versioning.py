@@ -24,8 +24,13 @@ The bridge is **model ⇄ snapshot ⇄ diffable text ⇄ git**:
   id/GUID regardless of whether it changed. Either way the restore is
   full-fidelity — real geometry for every element type, including element
   moves. **Project-level metadata is not carried by the binary import** (only
-  the JSON write-back below carries it). :meth:`switch_to` is the one-shot
-  ``checkout`` + ``reload_model``.
+  the JSON write-back below carries it).
+* :meth:`checkout`, :meth:`pull`, and :meth:`merge` are **model-aware by
+  default**: they update git and load the resulting version into the live model
+  (smart strategy). Pass ``apply_to_model=False`` for pure git. A dirty live
+  model (stale/missing vs the checked-out snapshot) raises
+  :class:`~pycadwork.versioning.DirtyWorkingTreeError` unless ``force=True``.
+  :meth:`switch_to` is a thin alias of model-aware :meth:`checkout`.
 * :meth:`restore` (alias :meth:`load`) is the lower-level form: it returns the
   working-tree ``.3dc`` path (e.g. to reopen by hand on another machine), and
   ``apply_to_model=True`` additionally runs the *legacy, best-effort* JSON
@@ -34,9 +39,7 @@ The bridge is **model ⇄ snapshot ⇄ diffable text ⇄ git**:
   project metadata the binary reload cannot, but cannot reproduce element moves.
 
 Direction is always the caller's explicit choice — there is no auto-merge —
-mirroring the persistence package. ``checkout`` switches git files only; bringing
-a version into the live model is the separate, explicit :meth:`reload_model`
-step (or :meth:`switch_to`, which combines them).
+mirroring the persistence package.
 """
 
 from __future__ import annotations
@@ -58,6 +61,7 @@ from pycadwork.versioning._codec import MANIFEST_FILE, MODEL_DIR, SnapshotCodec
 from pycadwork.versioning._git import init_repository, open_repository
 from pycadwork.versioning._repository import (
     CommitInfo,
+    DirtyWorkingTreeError,
     Repository,
     RepositoryError,
     RepoStatus,
@@ -329,7 +333,10 @@ class ModelVersioning:
     load = restore
 
     def reload_model(
-        self, *, strategy: Literal["smart", "full"] = "smart"
+        self,
+        *,
+        strategy: Literal["smart", "full"] = "smart",
+        force: bool = False,
     ) -> ReloadReport | SmartSwitchReport:
         """Load the committed ``.3dc`` into the live model.
 
@@ -347,14 +354,27 @@ class ModelVersioning:
         regardless of whether it changed. Returns a :class:`ReloadReport`. Use
         this escape hatch when a clean id/GUID reset is actually what you want.
 
-        Pair with :meth:`checkout` (or use :meth:`switch_to`) to load a
-        *specific* version: checkout swaps the tracked ``.3dc`` on disk, this
-        loads it into cadwork.
+        When the live model has uncommitted edits vs the checked-out snapshot
+        (any ``stale`` / ``missing`` in :meth:`sync_status`), this refuses
+        unless ``force=True`` — the dock "Load model to version" path confirms
+        then passes ``force=True``.
 
+        :meth:`checkout` / :meth:`pull` / :meth:`merge` (model-aware defaults)
+        already load the resulting version; call this directly to reload the
+        *currently* checked-out working tree.
+
+        Raises :class:`DirtyWorkingTreeError` when the dirty guard trips.
         Raises :class:`RepositoryError` if the commit carries no binary (e.g. it
         was made with ``include_binary=False``, so the manifest names no file or
         the file is absent) — there is then nothing full-fidelity to reload.
         """
+        self._assert_clean_for_model_load(force=force)
+        return self._reload_model_unchecked(strategy=strategy)
+
+    def _reload_model_unchecked(
+        self, *, strategy: Literal["smart", "full"]
+    ) -> ReloadReport | SmartSwitchReport:
+        """Load the working-tree model without the dirty guard (internal)."""
         document_path = self._resolve_document_path()
 
         if strategy == "full":
@@ -371,6 +391,25 @@ class ModelVersioning:
             added=added,
             removed=len(plan.stale),
             total=len(plan.unchanged) + added,
+        )
+
+    def _assert_clean_for_model_load(self, *, force: bool) -> None:
+        """Refuse model load when the live model has uncommitted snapshot delta.
+
+        Dirty for this guard means live model vs the *currently checked-out*
+        committed snapshot (``stale`` / ``missing`` in :meth:`sync_status`), not
+        git index dirtiness.
+        """
+        if force:
+            return
+        plan = self.sync_status()
+        if not plan.stale and not plan.missing:
+            return
+        head = self._repo.log(max_count=1)
+        commit_label = head[0].sha[:12] if head and head[0].sha else "HEAD"
+        raise DirtyWorkingTreeError(
+            f"live model differs from checked-out snapshot ({commit_label}); "
+            "commit your changes or pass force=True to discard live edits"
         )
 
     def _resolve_document_path(self) -> Path:
@@ -391,20 +430,20 @@ class ModelVersioning:
         return document_path
 
     def switch_to(
-        self, ref: str, *, strategy: Literal["smart", "full"] = "smart"
-    ) -> ReloadReport | SmartSwitchReport:
-        """Check out ``ref`` and load its committed model — git checkout, fully.
+        self,
+        ref: str,
+        *,
+        apply_to_model: bool = True,
+        strategy: Literal["smart", "full"] = "smart",
+        force: bool = False,
+    ) -> ReloadReport | SmartSwitchReport | None:
+        """Alias of model-aware :meth:`checkout` (same kwargs and return).
 
-        The one-shot equivalent of :meth:`checkout` followed by
-        :meth:`reload_model`: it switches the tracked files to ``ref`` and brings
-        that version into the live cadwork model in a single step. ``strategy``
-        is passed straight through to :meth:`reload_model` — see there for the
-        smart-vs-full distinction. Even the default ``strategy="smart"`` can
-        still touch elements that changed on either side, so a caller with
-        unsaved live edits should confirm first.
+        Kept for compatibility; prefer :meth:`checkout` for new code.
         """
-        self.checkout(ref)
-        return self.reload_model(strategy=strategy)
+        return self.checkout(
+            ref, apply_to_model=apply_to_model, strategy=strategy, force=force
+        )
 
     def model_status(self) -> SnapshotDiff:
         """Preview: diff the live model against the working-tree snapshot (no git)."""
@@ -457,19 +496,52 @@ class ModelVersioning:
         """Delete local branch ``name`` (``force`` discards unmerged commits)."""
         self._repo.delete_branch(name, force=force)
 
-    def checkout(self, ref: str) -> None:
-        """Switch git files to ``ref``; call :meth:`restore` / :meth:`load` after."""
-        self._repo.checkout(ref)
+    def checkout(
+        self,
+        ref: str,
+        *,
+        apply_to_model: bool = True,
+        strategy: Literal["smart", "full"] = "smart",
+        force: bool = False,
+    ) -> ReloadReport | SmartSwitchReport | None:
+        """Check out ``ref`` and, by default, load it into the live model.
 
-    def merge(self, ref: str, *, ff_only: bool = False) -> None:
-        """Merge ``ref`` into the current branch (ordinary git, no auto-resolve).
+        Order: dirty-guard against the *current* HEAD snapshot (when loading),
+        then git checkout, then :meth:`reload_model`. Pass
+        ``apply_to_model=False`` for pure working-tree checkout (returns
+        ``None``). ``force=True`` skips the dirty guard.
+        """
+        if apply_to_model:
+            self._assert_clean_for_model_load(force=force)
+        self._repo.checkout(ref)
+        if not apply_to_model:
+            return None
+        # Post-checkout delta vs the new tree is intentional; dirtiness was
+        # already checked against the previous HEAD above.
+        return self._reload_model_unchecked(strategy=strategy)
+
+    def merge(
+        self,
+        ref: str,
+        *,
+        ff_only: bool = False,
+        apply_to_model: bool = True,
+        strategy: Literal["smart", "full"] = "smart",
+        force: bool = False,
+    ) -> ReloadReport | SmartSwitchReport | None:
+        """Merge ``ref`` into the current branch; load the result by default.
 
         ``ff_only`` refuses a non-fast-forward; conflicts raise
-        :class:`MergeConflictError`. The merged ``.3dc`` is restored to the working
-        tree — call :meth:`restore` to reopen it (or :meth:`restore`
-        ``(apply_to_model=True)`` to bring it into the live model).
+        :class:`MergeConflictError` and **do not** load the model. Pass
+        ``apply_to_model=False`` for pure git (returns ``None``).
         """
+        if apply_to_model:
+            self._assert_clean_for_model_load(force=force)
+        # MergeConflictError propagates without loading the model.
         self._repo.merge(ref, ff_only=ff_only)
+        if not apply_to_model:
+            return None
+        return self._reload_model_unchecked(strategy=strategy)
 
     def diff(
         self, a: str | None = None, b: str | None = None, *, stat: bool = False
@@ -515,9 +587,27 @@ class ModelVersioning:
         """Push ``ref`` (default: current branch) to ``remote``; ``force`` overwrites."""
         self._repo.push(remote, ref, force=force)
 
-    def pull(self, remote: str = "origin", ref: str | None = None) -> None:
-        """Pull ``ref`` from ``remote``; :class:`MergeConflictError` is surfaced."""
+    def pull(
+        self,
+        remote: str = "origin",
+        ref: str | None = None,
+        *,
+        apply_to_model: bool = True,
+        strategy: Literal["smart", "full"] = "smart",
+        force: bool = False,
+    ) -> ReloadReport | SmartSwitchReport | None:
+        """Pull ``ref`` from ``remote``; load the result into the live model by default.
+
+        :class:`MergeConflictError` is re-raised without loading the model. Pass
+        ``apply_to_model=False`` for pure git (returns ``None``).
+        """
+        if apply_to_model:
+            self._assert_clean_for_model_load(force=force)
+        # MergeConflictError propagates without loading the model.
         self._repo.pull(remote, ref)
+        if not apply_to_model:
+            return None
+        return self._reload_model_unchecked(strategy=strategy)
 
     def log(self, max_count: int = 50) -> tuple[CommitInfo, ...]:
         return self._repo.log(max_count=max_count)

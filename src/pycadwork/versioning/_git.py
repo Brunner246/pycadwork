@@ -240,7 +240,7 @@ class GitRepository:
             if "conflict" in str(exc).lower():
                 raise MergeConflictError(
                     f"merge of {ref!r} produced conflicts; resolve in git, then "
-                    "restore()/reopen"
+                    "reload_model / resolve then checkout"
                 ) from exc
             raise RepositoryError(f"merge of {ref!r} failed: {exc}") from exc
         if self._repo.index.unmerged_blobs():
@@ -300,7 +300,7 @@ class GitRepository:
             if "conflict" in str(exc).lower():
                 raise MergeConflictError(
                     f"pull from {remote}/{target} produced conflicts; resolve in "
-                    "git, then restore()/reopen"
+                    "git, then reload_model / resolve then checkout"
                 ) from exc
             raise RepositoryError(f"pull from {remote}/{target} failed: {exc}") from exc
         if self._repo.index.unmerged_blobs():

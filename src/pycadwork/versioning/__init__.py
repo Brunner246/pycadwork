@@ -19,8 +19,9 @@ git.
 
 * ``commit`` is lossless; the optional JSON ``restore(apply_to_model=True)`` is
   *best-effort* — existing elements' points are never moved and
-  non-reconstructable types are skipped. The binary ``.3dc`` is therefore the
-  primary restore path; ``restore()`` returns its exact path to reopen.
+  non-reconstructable types are skipped. The binary ``.3dc`` is the
+  full-fidelity artifact; model-aware ``checkout`` / ``pull`` / ``merge`` load
+  it into the live model by default (``apply_to_model=False`` for pure git).
 * Float reads can drift across machines/cadwork builds → commit from a consistent
   environment to avoid spurious diffs.
 * GitPython (extra ``pycadwork[git]``) and a ``git`` executable are required at
@@ -37,8 +38,7 @@ Typical use::
     vcs.commit("framed the north wall")
     vcs.create_branch("alternative-roof")
     ...
-    vcs.checkout("main")
-    report = vcs.restore()              # report.document_path -> reopen in cadwork
+    vcs.checkout("main")                # git + load main into the live model
 """
 
 from __future__ import annotations
@@ -59,6 +59,7 @@ from pycadwork.versioning._git import (
 )
 from pycadwork.versioning._repository import (
     CommitInfo,
+    DirtyWorkingTreeError,
     GitNotAvailableError,
     LfsNotAvailableError,
     MergeConflictError,
@@ -81,6 +82,7 @@ __all__ = [
     "CodecError",
     "CommitInfo",
     "CommitReport",
+    "DirtyWorkingTreeError",
     "ElementFingerprint",
     "GitNotAvailableError",
     "GitRepository",
