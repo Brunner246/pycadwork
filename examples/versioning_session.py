@@ -3,20 +3,17 @@
 # you can watch each step. It walks the same lifecycle:
 #
 #   commit baseline on main -> branch -> add 5 beams -> commit -> push
-#   -> switch back to main (the beams are STILL in the live model!)
-#   -> restore(apply_to_model=True)  (now the beams are gone)
+#   -> model-aware checkout back to main (the beams leave the live model)
 #
-# THE GOTCHA this demonstrates: vcs.checkout("main") switches the *git files* only.
-# It does NOT rewind the *live cadwork model* — your 5 beams are still there after
-# the checkout. They disappear only when you apply main's snapshot back into the
-# model with restore(apply_to_model=True), which deletes elements main doesn't have.
+# By default checkout updates git AND loads that version into the live model.
+# For pure working-tree checkout only: vcs.checkout(main_branch, apply_to_model=False)
 #
 # Prerequisites (see examples/versioning_in_cadwork.py for the full setup):
 #   * pycadwork provisioned into cadwork's interpreter + `pip install 'pycadwork[git]'`
 #   * a `git` executable (ideally with git-lfs) on PATH
 #   * your model SAVED to disk (File > Save)
 #
-# It mutates your model: adds 5 beams in group "five-beams-workflow", then deletes
+# It mutates your model: adds 5 beams in group "five-beams-workflow", then removes
 # them on the way back to main. They stay safe on the branch; main is never merged.
 
 # --- imports ---
@@ -75,32 +72,21 @@ print("commit:", report.commit.sha[:8], "files:", report.files_changed)
 vcs.push("demo", BRANCH, force=True)
 print("pushed", BRANCH, "to demo")
 
-# --- switch back to main WITHOUT merging ---
-vcs.checkout(main_branch)
+# --- switch back to main WITHOUT merging (model-aware: live model rewinds too) ---
+switch = vcs.checkout(main_branch)
 print("checked out:", vcs.current_branch())
+print(
+    "reload:",
+    getattr(switch, "unchanged", None),
+    getattr(switch, "added", None),
+    getattr(switch, "removed", None),
+    getattr(switch, "total", None),
+)
 print(
     "demo beams in model AFTER checkout:",
     sum(1 for b in Document().elements_of(Beam) if b.attrs.group == GROUP),
-)  # -> still 5 (checkout = git files only!)
-
-# --- apply main's snapshot back into the model: the 5 beams (absent on main) get deleted ---
-result = vcs.restore(apply_to_model=True)
-print(
-    "restore: created",
-    result.created,
-    "updated",
-    result.updated,
-    "deleted",
-    result.deleted,
-    "skipped",
-    result.skipped,
-)
-print(
-    "demo beams in model AFTER restore:",
-    sum(1 for b in Document().elements_of(Beam) if b.attrs.group == GROUP),
-)  # -> 0, gone
+)  # -> 0, gone with the model-aware switch
 
 # The 5 beams are safe on the branch (local + demo remote); main was never merged.
 # To bring them back later:
 #   vcs.checkout(BRANCH)
-#   vcs.restore(apply_to_model=True)

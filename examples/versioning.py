@@ -1,10 +1,11 @@
-"""A git workflow over a cadwork model — commit, branch, checkout, restore.
+"""A git workflow over a cadwork model — commit, branch, model-aware checkout.
 
 ``pycadwork.versioning`` turns the live model into a git history you can review.
 A :meth:`ModelVersioning.commit` captures the model as *both* a deterministic,
 line-diffable JSONL tree (the reviewable artifact) and the binary ``.3dc`` (the
-full-fidelity artifact a checkout restores for reopening in cadwork). Branches,
-checkout, push and pull are ordinary git.
+full-fidelity artifact). By default ``checkout`` / ``pull`` / ``merge`` update
+git **and** load the resulting version into the live model. Pass
+``apply_to_model=False`` for pure working-tree operations.
 
     uv run python -m examples.versioning
 
@@ -16,6 +17,7 @@ is that temp dir. Real use is identical but with a real repository::
 
     vcs = ModelVersioning.open()        # repo in the active .3dc's directory
     vcs.commit("framed the north wall")
+    vcs.checkout("main")                # git + load main into the live model
 
 .. note::
 
@@ -86,7 +88,7 @@ def demo_commit_and_log(vcs: ModelVersioning) -> None:
 
 
 def demo_branch_and_checkout(vcs: ModelVersioning) -> None:
-    """Branch, change the model, commit — then checkout swaps the working tree."""
+    """Branch, change the model, commit — then model-aware checkout loads ``main``."""
     vcs.create_branch("add-purlin", checkout=True)
     print("branch ->", vcs.current_branch())
 
@@ -96,31 +98,44 @@ def demo_branch_and_checkout(vcs: ModelVersioning) -> None:
     )
     vcs.commit("add a purlin")
 
-    vcs.checkout("main")  # files only — bringing it into the model is restore()
-    print("branches =", vcs.branches(), "now on", vcs.current_branch())
+    # Default checkout is model-aware: git switch + load main into the live model.
+    # Pure git only: vcs.checkout("main", apply_to_model=False)
+    report = vcs.checkout("main")
+    print(
+        "branches =",
+        vcs.branches(),
+        "now on",
+        vcs.current_branch(),
+        f"(reload: {_report_line(report)})",
+    )
 
 
 def demo_diff_and_merge(vcs: ModelVersioning) -> None:
     """`diff` reviews the JSONL change; `merge` folds a branch back — all via the facade.
 
     No ``subprocess`` / raw ``git`` anywhere: the facade wraps diff and merge too.
+    Merge is model-aware by default (loads the merged version after success).
     """
     # We are on main; `add-purlin` has one extra commit. Diff is the reviewable
     # payoff of committing a deterministic JSONL tree alongside the binary.
     summary = vcs.diff("main", "add-purlin", stat=True)
     print("diff main..add-purlin:", summary.replace("\n", " | ") or "(no changes)")
 
-    vcs.merge("add-purlin", ff_only=True)  # fast-forward main to the branch tip
+    report = vcs.merge("add-purlin", ff_only=True)  # fast-forward + load
     print(
-        "after merge, on", vcs.current_branch(), "log =", [c.message for c in vcs.log()]
+        "after merge, on",
+        vcs.current_branch(),
+        "log =",
+        [c.message for c in vcs.log()],
+        f"(reload: {_report_line(report)})",
     )
 
 
 def demo_model_status(vcs: ModelVersioning) -> None:
     """`model_status` previews how the live model differs from the working tree.
 
-    It is a pure diff — no git needed. After checking out ``main`` (two
-    elements) while the live model still has three, the extra element shows up.
+    After a model-aware checkout of ``main``, live model and working tree match
+    for the committed elements (no uncommitted delta left from the branch).
     """
     status = vcs.model_status()
     print(
@@ -129,14 +144,39 @@ def demo_model_status(vcs: ModelVersioning) -> None:
     )
 
 
+def demo_pure_git_escape(vcs: ModelVersioning) -> None:
+    """``apply_to_model=False`` keeps pure working-tree checkout available."""
+    pure = vcs.checkout("add-purlin", apply_to_model=False)
+    print(
+        f"pure-git checkout add-purlin: report={pure!r}, "
+        f"branch={vcs.current_branch()!r}"
+    )
+    # Return to main with the default model-aware path for later demos.
+    vcs.checkout("main", force=True)
+
+
 def demo_restore(vcs: ModelVersioning) -> None:
-    """`restore` returns the .3dc to reopen — the full-fidelity primary path."""
+    """`restore` returns the working-tree ``.3dc`` path (e.g. to reopen by hand)."""
     report = vcs.restore()
     print(
         f"restore: reopen {report.document_path.name} "
         f"(exists={report.document_path.is_file()}), "
         f"applied_to_model={report.applied_to_model}"
     )
+
+
+def _report_line(report: object | None) -> str:
+    """One-line summary for a reload/smart-switch report (or pure-git ``None``)."""
+    if report is None:
+        return "none (apply_to_model=False)"
+    if hasattr(report, "added"):
+        return (
+            f"unchanged={report.unchanged} added={report.added} "
+            f"removed={report.removed} total={report.total}"
+        )
+    if hasattr(report, "imported"):
+        return f"imported={report.imported}"
+    return repr(report)
 
 
 def demo_real_repo_note() -> None:
@@ -163,6 +203,7 @@ def run() -> None:
         demo_commit_and_log(vcs)
         demo_branch_and_checkout(vcs)
         demo_model_status(vcs)
+        demo_pure_git_escape(vcs)
         demo_restore(vcs)
         demo_diff_and_merge(vcs)
     demo_real_repo_note()

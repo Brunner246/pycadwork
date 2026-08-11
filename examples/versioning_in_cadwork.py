@@ -26,7 +26,8 @@ What it does — a full branch / edit / diff / merge round-trip:
    *id-level* delta vs HEAD — which elements were added/deleted, by id) and a
    textual ``git diff`` of the JSONL tree (the *field-level* changes — a moved
    point, a renamed attribute — that an id-keyed diff can't see).
-4. Switches back to the original branch and **fast-forward merges** the branch.
+4. Switches back to the original branch and **fast-forward merges** the demo
+   branch — model-aware, so the live model already holds the merged result.
 
 ⚠️ **It mutates your model**: step 2 adds a beam named ``versioning-demo-beam``
 (re-runs reuse the existing one instead of piling up). Delete it when you're done.
@@ -37,10 +38,12 @@ Two notes on the design this example leans on:
   (:meth:`~ModelVersioning.merge` / :meth:`~ModelVersioning.diff`) — you never
   shell out to ``git`` yourself. Direction is always your explicit choice (no
   auto-merge), and the binary model file can't be line-merged: a conflicting
-  merge raises :class:`MergeConflictError`, which you resolve in git and reopen.
-* ``checkout`` switches the *git files* only — it never rewinds the *live model*.
-  Bringing a committed version back into cadwork is the separate, explicit
-  :meth:`~ModelVersioning.restore` step (it returns the model file to reopen).
+  merge raises :class:`MergeConflictError`, which you resolve in git then
+  ``reload_model`` / model-aware ``checkout``.
+* By default ``checkout`` / ``pull`` / ``merge`` update git **and** load the
+  resulting version into the live model. Pass ``apply_to_model=False`` for pure
+  working-tree operations. A dirty live model (uncommitted edits vs the checked-
+  out snapshot) raises :class:`DirtyWorkingTreeError` unless ``force=True``.
 """
 
 from __future__ import annotations
@@ -138,9 +141,8 @@ def show_model_diff(vcs: ModelVersioning) -> None:
     """Print the id-level delta between the live model and the last commit.
 
     ``model_status()`` is ``diff(live model, last commit)`` — a preview of what
-    :meth:`~ModelVersioning.restore` would do to return the model to HEAD. It
-    classifies elements **by id only**, so its fields read in that restore
-    direction:
+    an uncommitted edit looks like before the next ``commit``. It classifies
+    elements **by id only**, so its fields read in that direction:
 
     * ``removed`` — ids in the live model but not in the commit → your
       **uncommitted additions** (the demo beam lands here before you commit it).
@@ -181,15 +183,19 @@ def show_text_diff(vcs: ModelVersioning, baseline_sha: str) -> None:
 def merge_back(vcs: ModelVersioning, target_branch: str) -> None:
     """Fast-forward merge the demo branch into ``target_branch`` through the facade."""
     vcs.checkout(target_branch)
-    print(f"merge:    checked out {target_branch!r}")
-    vcs.merge(DEMO_BRANCH, ff_only=True)
+    print(f"merge:    checked out {target_branch!r} (model-aware)")
+    report = vcs.merge(DEMO_BRANCH, ff_only=True)
     print(f"  fast-forwarded {target_branch!r} to {DEMO_BRANCH!r}")
-
-    restored = vcs.restore()  # the merged model file you'd reopen in cadwork
-    print(f"restore:  reopen {restored.document_path} to load the merged version")
+    if report is not None and hasattr(report, "total"):
+        print(
+            f"  live model reloaded — unchanged={report.unchanged} "
+            f"added={report.added} removed={report.removed} total={report.total}"
+        )
+    elif report is not None and hasattr(report, "imported"):
+        print(f"  live model reloaded — imported={report.imported}")
     print(
-        "  (the live model already holds the demo beam — restore matters when you "
-        "pick this version up on another machine)"
+        "  (the live model holds the demo beam when the merge brought it in; "
+        "no separate restore step)"
     )
 
 

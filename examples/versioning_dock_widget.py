@@ -197,10 +197,12 @@ class VersioningViewModel(QObject):
         fingerprint: unchanged elements keep their existing cadwork id/GUID.
         ``strategy="full"`` is the legacy escape hatch — every element gets a
         fresh id/GUID. The View confirms before calling either (both can
-        replace parts of the live model).
+        replace parts of the live model), then this method passes
+        ``force=True`` so the dirty guard does not refuse after that confirm.
         """
         ok, report = self._run(
-            "Load model", lambda: self._vcs.reload_model(strategy=strategy)
+            "Load model",
+            lambda: self._vcs.reload_model(strategy=strategy, force=True),
         )
         if ok:
             self.notified.emit(
@@ -214,13 +216,17 @@ class VersioningViewModel(QObject):
     def checkout(self, branch: str, *, strategy: str = "smart") -> None:
         """Switch to ``branch`` *and* load its model — git checkout, fully.
 
-        Uses ``ModelVersioning.switch_to`` so a branch pick lands the live model
-        on that version in one step. The default ``strategy="smart"`` only
-        touches the elements that actually differ; ``strategy="full"`` is the
-        legacy full reimport. Either way the View confirms before this runs.
+        Uses model-aware ``ModelVersioning.checkout`` so a branch pick lands
+        the live model on that version in one step. The default
+        ``strategy="smart"`` only touches the elements that actually differ;
+        ``strategy="full"`` is the legacy full reimport. The View confirms
+        first, then this method passes ``force=True``.
         """
         ok, report = self._run(
-            "Switch", lambda: self._vcs.switch_to(branch, strategy=strategy)
+            "Switch",
+            lambda: self._vcs.checkout(
+                branch, strategy=strategy, force=True
+            ),
         )
         if ok:
             self.notified.emit(
@@ -268,11 +274,18 @@ class VersioningViewModel(QObject):
             self.notified.emit(f"Deleted branch {name!r}.", False)
 
     def merge(self, ref: str) -> None:
-        ok, _ = self._run("Merge", lambda: self._vcs.merge(ref))
+        """Merge ``ref`` into the current branch and load the result (model-aware).
+
+        Dirty live edits raise :class:`DirtyWorkingTreeError` (caught as
+        :class:`RepositoryError`) — there is no confirm dialog on this path.
+        """
+        ok, report = self._run("Merge", lambda: self._vcs.merge(ref))
         if ok:
+            summary = (
+                f" — {_report_summary(report)}" if report is not None else ""
+            )
             self.notified.emit(
-                f"Merged {ref!r} into {self._safe_branch()}. Use “Load model to "
-                "version” to bring the merged model into cadwork.",
+                f"Merged {ref!r} into {self._safe_branch()}{summary}.",
                 False,
             )
 
@@ -307,11 +320,18 @@ class VersioningViewModel(QObject):
             self.notified.emit(f"Pushed {self._safe_branch()} to {remote!r}.", False)
 
     def pull(self, remote: str) -> None:
-        ok, _ = self._run("Pull", lambda: self._vcs.pull(remote))
+        """Pull from ``remote`` and load the result into the live model.
+
+        Dirty live edits raise :class:`DirtyWorkingTreeError` (caught as
+        :class:`RepositoryError`) — there is no confirm dialog on this path.
+        """
+        ok, report = self._run("Pull", lambda: self._vcs.pull(remote))
         if ok:
+            summary = (
+                f" — {_report_summary(report)}" if report is not None else ""
+            )
             self.notified.emit(
-                f"Pulled {remote!r} into {self._safe_branch()}. Use “Load model to "
-                "version” to load it into the model.",
+                f"Pulled {remote!r} into {self._safe_branch()}{summary}.",
                 False,
             )
 

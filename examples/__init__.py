@@ -28,7 +28,8 @@ Modules:
 * :mod:`examples.sql_builder`          — the table-as-data SQL builder; query a pulled model
 * :mod:`examples.reporting`            — cutting lists and material totals over a snapshot
 * :mod:`examples.rules`                — validate the model against declarative rules
-* :mod:`examples.versioning`           — a git workflow over the model: commit, branch, restore
+* :mod:`examples.versioning`           — a git workflow over the model: commit, branch,
+  model-aware checkout
 
 Three scripts are **not** in the ``MODULES`` tour because they need a live model
 and a real git repository, so they only run inside cadwork (not under the fake
@@ -36,13 +37,14 @@ adapter). All git work in them goes through the :class:`ModelVersioning` facade 
 no raw ``git`` / ``subprocess``:
 
 * :mod:`examples.versioning_in_cadwork` — commit the live model to a real git repo,
-  then branch / diff / merge (run from cadwork's API menu; see its module docstring)
-* :mod:`examples.versioning_branch_workflow` — branch + 5 beams + push, then switch
-  back to ``main`` without merging
-* :mod:`examples.versioning_idle_session` — the same lifecycle as a copy-paste
+  then branch / diff / model-aware merge (run from cadwork's API menu; see its
+  module docstring)
+* :mod:`examples.versioning_branch_workflow` — branch + 5 beams + push, then
+  model-aware checkout back to ``main`` without merging
+* :mod:`examples.versioning_session` — the same lifecycle as a copy-paste
   session for cadwork's interactive Python shell (IDLE)
 * :mod:`examples.versioning_dock_widget` — a PyQt6 (MVVM) dock widget that docks
-  into cadwork's main window to commit / branch / push / pull / revert the live
+  into cadwork's main window to commit / branch / push / pull / load the live
   model interactively (needs PyQt6 in addition to the git backend)
 
 .. note::

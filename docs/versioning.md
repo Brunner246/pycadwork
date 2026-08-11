@@ -13,7 +13,7 @@ model  ⇄  ModelSnapshot     (reuses pycadwork.persistence)
 
 A `commit` **losslessly** captures the model as *both* a per-table JSONL tree
 (the reviewable, line-diffable artifact) and the saved `.3d` / `.3dc` tracked via
-**Git LFS** (the full-fidelity artifact a checkout restores for reopening in cadwork).
+**Git LFS** (the full-fidelity artifact).
 
 ```python
 from pycadwork.versioning import ModelVersioning
@@ -24,23 +24,58 @@ print(report.commit.sha, report.files_changed, report.document_file)
 
 vcs.create_branch("alternative-roof")        # ordinary git branching
 ...
-report = vcs.switch_to("main")               # checkout + load the model, in one step
+report = vcs.checkout("main")                # git + load main into the live model
 print(report.total)                          # elements now in the live model
 ```
 
-### Bringing a version into the live model
+### Model-aware defaults
 
-`switch_to(ref)` is the real "git checkout this version": it checks out `ref`
-(swapping the tracked files on disk) **and** loads that version's committed
-`.3dc` into the running cadwork model. `reload_model()` does just the load half
-(after a plain `checkout`). Both are full-fidelity — real geometry for every
-element type, **including element moves** — and both default to a **smart**
-switch that behaves like a real `git checkout`: only what actually changed
-churns.
+By default **`checkout`**, **`pull`**, and **`merge`** update git **and** load the
+resulting version into the live cadwork model (smart strategy). That matches the
+mental model of a git client for models: switching branch or pulling a teammate's
+work leaves you looking at that version.
+
+| Method | Default | Escape hatches |
+|--------|---------|----------------|
+| `checkout(ref)` | Git checkout + reload | `apply_to_model=False`; `strategy="full"`; `force=True` |
+| `pull(...)` | Git pull + reload on success | same |
+| `merge(...)` | Git merge + reload on success | same; conflicts never load |
+| `switch_to(ref)` | Alias of model-aware `checkout` | same kwargs |
+| `reload_model()` | Load the *currently checked-out* version only | `strategy`; `force=True` |
+| `create_branch` | Git only (same commit; model already matches) | — |
 
 ```python
-vcs.checkout("main")          # git files only — the live model is untouched
-report = vcs.reload_model()   # now load main's committed .3dc into the model
+# Model-aware (default): files + live model
+report = vcs.checkout("main")
+report = vcs.pull("origin")
+report = vcs.merge("feature/roof")
+
+# Pure git (working tree only) — returns None
+vcs.checkout("main", apply_to_model=False)
+```
+
+Return type for model-aware checkout / pull / merge is
+`ReloadReport | SmartSwitchReport | None` — `None` only when
+`apply_to_model=False`.
+
+#### Dirty live model
+
+Before any operation that would load the model, if the live model differs from
+the currently checked-out committed snapshot (`sync_status` has any `stale` or
+`missing` elements) and `force` is false, the facade raises
+**`DirtyWorkingTreeError`** (a `RepositoryError` subclass). Commit your work, or
+pass `force=True` after an explicit confirm (as the dock does).
+
+This is **live model vs committed snapshot**, not git index dirtiness
+(`status().is_dirty` remains available separately for uncommitted JSONL/binary
+tree changes).
+
+```python
+try:
+    vcs.checkout("main")
+except DirtyWorkingTreeError:
+    vcs.commit("wip")           # or:
+    vcs.checkout("main", force=True)  # discard live edits
 ```
 
 #### Smart switching: minimal-touch, like real `git checkout`
@@ -51,11 +86,11 @@ target by **content fingerprint** — never by id or GUID, since
 a fresh cadwork GUID for everything it imports. An element whose content
 didn't change keeps its existing cadwork id/GUID untouched; only the true
 delta is added or removed. A pure-removal switch (nothing new to bring in)
-never even imports the binary. `reload_model()` / `switch_to()` return a
+never even imports the binary. `reload_model()` / model-aware `checkout` return a
 `SmartSwitchReport(document_path, unchanged, added, removed, total)`.
 
 ```python
-report = vcs.switch_to("main")   # smart by default
+report = vcs.checkout("main")   # smart by default
 print(report.unchanged, report.added, report.removed, report.total)
 ```
 
@@ -70,14 +105,14 @@ plan = vcs.preview_switch("main")   # still on the current branch
 print(len(plan.unchanged), len(plan.stale), len(plan.missing))
 ```
 
-Pass `strategy="full"` to `reload_model()` / `switch_to()` for the original,
+Pass `strategy="full"` to `reload_model()` / `checkout()` for the original,
 simpler behavior: every live element is deleted and the whole committed
 `.3dc` is imported, so *every* element gets a fresh cadwork id/GUID
 regardless of whether it changed. Returns the original `ReloadReport`. Use
 this when a clean id/GUID reset is actually what you want.
 
 ```python
-report = vcs.switch_to("main", strategy="full")
+report = vcs.checkout("main", strategy="full")
 print(report.imported)
 ```
 
@@ -103,10 +138,11 @@ churned on every switch regardless of strategy.
 *additionally* runs a **legacy best-effort** JSON write-back through the
 persistence `ModelWriter`; per its limits, existing elements' points are **never
 moved** and non-reconstructable types are skipped (counted in
-`RestoreReport.skipped`) — so it cannot reproduce a move. Prefer `reload_model`
-for a faithful restore; the JSON write-back's one advantage is that it carries
-project-level metadata (see limitations). `model_status()` is a pure preview —
-`diff(live model, working-tree snapshot)` — needing no git.
+`RestoreReport.skipped`) — so it cannot reproduce a move. Prefer model-aware
+`checkout` / `reload_model` for a faithful restore; the JSON write-back's one
+advantage is that it carries project-level metadata (see limitations).
+`model_status()` is a pure preview — `diff(live model, working-tree snapshot)` —
+needing no git.
 
 **Limits of the binary reload:** `import_3dc_file` brings in *elements*, not
 project-level metadata (name/number/architect…). With `strategy="full"` this
@@ -135,10 +171,10 @@ Stated in the docstrings too:
   volumes as well as in coordinates while preserving sub-micron precision at
   building scale. Reads stay faithful to what is on disk; tune via
   `SnapshotCodec(float_significant_digits=…)`.
-- **Merge conflicts** are surfaced, never auto-resolved: `pull` raises
-  `MergeConflictError`; conflict markers in the JSONL make `restore` raise
-  `CodecError`. The binary `.3dc` can't be line-merged — resolve in git, then
-  reopen.
+- **Merge conflicts** are surfaced, never auto-resolved: `pull` / `merge` raise
+  `MergeConflictError` and **do not** load the model; conflict markers in the
+  JSONL make `restore` raise `CodecError`. The binary `.3dc` can't be
+  line-merged — resolve in git, then `reload_model` or model-aware `checkout`.
 
 The codec is pure (stdlib only) and the whole stack is testable with no git via
 the `Repository` seam. A runnable, CI-safe tour (backed by a fake repository)

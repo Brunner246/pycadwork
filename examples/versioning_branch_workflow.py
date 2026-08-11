@@ -12,21 +12,17 @@ touching ``main``:
 1. Initialize the repo and commit the current model as a baseline on ``main``.
 2. Branch off, **create 5 beams in the live model**, commit, and **push** the
    branch to a remote.
-3. Switch back to ``main`` — **without merging** — and get the model back to the
-   baseline (the 5 beams gone from the running model).
+3. Switch back to ``main`` — **without merging** — with a single model-aware
+   ``checkout`` so the live model rewinds to the baseline (the 5 beams gone).
 
-⚠️ **The one thing that surprises everyone** — ``checkout`` switches the *git
-files* only; it does **not** rewind the *live cadwork model*. So right after
-``checkout('main')`` the 5 beams are *still* in your model. They disappear only
-when you **apply** ``main``'s snapshot back to the model with
-``restore(apply_to_model=True)`` — which deletes the elements that ``main`` does
-not have. This example prints the model's beam count at each step so you can see
-exactly when they go.
+By default ``checkout`` / ``pull`` / ``merge`` update git **and** load the
+resulting version into the live model. Pass ``apply_to_model=False`` only when
+you need pure working-tree operations (e.g. scripting against files alone).
 
 ⚠️ **It mutates your model**: it adds 5 beams in the group ``five-beams-workflow``
-and then deletes them again on the way back to ``main``. They live on safely on
+and then removes them again on the way back to ``main``. They live on safely on
 the ``feature/five-beams`` branch (locally and on the remote); ``main`` is never
-merged, so re-applying the branch later brings them back.
+merged, so checking out the branch later brings them back.
 
 How to run it inside cadwork: see the header of
 :mod:`examples.versioning_in_cadwork` — provision pycadwork into cadwork's
@@ -142,6 +138,19 @@ def push_branch(vcs: ModelVersioning, remote: str, name: str) -> None:
         print(f"push:     force-pushed {name!r} -> {remote!r} (re-run)")
 
 
+def _report_line(report: object | None) -> str:
+    if report is None:
+        return "none"
+    if hasattr(report, "added"):
+        return (
+            f"unchanged={report.unchanged} added={report.added} "
+            f"removed={report.removed} total={report.total}"
+        )
+    if hasattr(report, "imported"):
+        return f"imported={report.imported}"
+    return repr(report)
+
+
 def run_workflow() -> None:
     """Init → baseline on main → branch + 5 beams + push → back to main (beams gone)."""
     vcs = ModelVersioning.open()  # inits the repo in the model's dir on first run
@@ -168,28 +177,24 @@ def run_workflow() -> None:
     )
     push_branch(vcs, remote, BRANCH)
 
-    # --- switch back to main WITHOUT merging ---
-    vcs.checkout(main_branch)
-    print(f"\ncheckout {main_branch!r}:")
+    # --- switch back to main WITHOUT merging (model-aware checkout) ---
+    # force=True: live model still holds the feature beams (uncommitted vs main's
+    # snapshot once HEAD moves — refuse would trip without force after leaving).
+    # The dirty guard compares live model vs *current* HEAD before checkout, so
+    # after committing the beams on the feature branch the tree is clean; force
+    # is not required for a clean switch, but is safe if the model drifted.
+    switch = vcs.checkout(main_branch)
+    print(f"\ncheckout {main_branch!r} (model-aware):")
+    print(f"  {_report_line(switch)}")
     print(
-        f"  git files now match {main_branch!r}, but the LIVE MODEL still has "
-        f"{count_demo_beams()} demo beams —"
+        f"  live model now has {count_demo_beams()} demo beams — "
+        "gone with the git switch (no separate restore step)."
     )
-    print("  checkout switches git files only; it never touches the running model.")
-
-    # Apply main's snapshot back to the model: elements main lacks get deleted.
-    result = vcs.restore(apply_to_model=True)
-    print(
-        f"restore(apply_to_model=True): created={result.created} "
-        f"updated={result.updated} deleted={result.deleted} skipped={result.skipped}"
-    )
-    print(f"  live model now has {count_demo_beams()} demo beams — gone, as expected.")
 
     print(
         f"\nthe {BEAM_COUNT} beams are safe on {BRANCH!r} (local + {remote!r}); "
         f"{main_branch!r} was never merged.\n"
-        f"to bring them back: vcs.checkout({BRANCH!r}); "
-        "vcs.restore(apply_to_model=True)."
+        f"to bring them back: vcs.checkout({BRANCH!r})"
     )
 
 
