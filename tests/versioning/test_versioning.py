@@ -25,6 +25,8 @@ from pycadwork.cadwork_adapter import cadwork
 from pycadwork.persistence import SnapshotDiff
 from pycadwork.versioning import (
     CommitReport,
+    DirtyWorkingTreeError,
+    MergeConflictError,
     ModelVersioning,
     ReloadReport,
     RepositoryError,
@@ -228,13 +230,247 @@ def test_commit_branch_checkout_restore_loop(
     )
     assert len(feature_lines) == 3
 
-    vcs.checkout("main")
+    report = vcs.checkout("main")
     base_lines = (
         (fake_repo.working_dir / MODEL_DIR / "element.jsonl").read_text().splitlines()
     )
     assert len(base_lines) == 2
+    # model-aware default: live model is reloaded to main's two elements
+    assert isinstance(report, SmartSwitchReport)
+    assert len(Document().elements()) == 2
 
     assert set(vcs.branches()) == {"main", "feature"}
+
+
+# ---- model-aware checkout / pull / merge + dirty guard ----
+
+
+def test_checkout_loads_model_by_default(
+    fake_repo: FakeRepository, saved_model: Path
+) -> None:
+    beam, plate = _seed()
+    vcs = _versioning(fake_repo)
+    vcs.commit("base")
+    main = vcs.current_branch()
+
+    vcs.create_branch("feature", checkout=True)
+    Beam.create_rectangular(
+        RectSection(60, 120),
+        AxisPoints(Point3D(5, 0, 0), Point3D(5, 1000, 0), Point3D(5, 0, 1)),
+    )
+    vcs.commit("add a beam")
+    assert len(Document().elements()) == 3
+
+    report = vcs.checkout(main)
+
+    assert isinstance(report, SmartSwitchReport)
+    assert vcs.current_branch() == main
+    assert {e.id for e in Document().elements()} == {beam.id, plate.id}
+    assert report.total == 2
+
+
+def test_checkout_apply_to_model_false_leaves_live_model_untouched(
+    fake_repo: FakeRepository, saved_model: Path
+) -> None:
+    _seed()
+    vcs = _versioning(fake_repo)
+    vcs.commit("base")
+    main = vcs.current_branch()
+
+    vcs.create_branch("feature", checkout=True)
+    Beam.create_rectangular(
+        RectSection(60, 120),
+        AxisPoints(Point3D(5, 0, 0), Point3D(5, 1000, 0), Point3D(5, 0, 1)),
+    )
+    vcs.commit("add a beam")
+    live_ids_before = {e.id for e in Document().elements()}
+    assert len(live_ids_before) == 3
+
+    report = vcs.checkout(main, apply_to_model=False)
+
+    assert report is None
+    assert vcs.current_branch() == main
+    # git tree is main (2 elements); live model still has feature's 3
+    assert (
+        len(
+            (fake_repo.working_dir / MODEL_DIR / "element.jsonl")
+            .read_text()
+            .splitlines()
+        )
+        == 2
+    )
+    assert {e.id for e in Document().elements()} == live_ids_before
+
+
+def test_dirty_checkout_raises_unless_force(
+    fake_repo: FakeRepository, saved_model: Path
+) -> None:
+    beam, _plate = _seed()
+    vcs = _versioning(fake_repo)
+    vcs.commit("base")
+    main = vcs.current_branch()
+    vcs.create_branch("feature", checkout=True)
+    # Uncommitted live edit vs the checked-out feature snapshot.
+    Document().delete([beam])
+    assert len(Document().elements()) == 1
+
+    with pytest.raises(DirtyWorkingTreeError, match="force=True"):
+        vcs.checkout(main)
+
+    assert vcs.current_branch() == "feature"
+    assert len(Document().elements()) == 1
+
+    report = vcs.checkout(main, force=True)
+
+    assert isinstance(report, SmartSwitchReport)
+    assert vcs.current_branch() == main
+    assert len(Document().elements()) == 2
+
+
+def test_dirty_reload_model_raises_unless_force(
+    fake_repo: FakeRepository, saved_model: Path
+) -> None:
+    beam, _plate = _seed()
+    vcs = _versioning(fake_repo)
+    vcs.commit("snap")
+    Document().delete([beam])
+
+    with pytest.raises(DirtyWorkingTreeError):
+        vcs.reload_model()
+
+    assert len(Document().elements()) == 1
+    report = vcs.reload_model(force=True)
+    assert isinstance(report, SmartSwitchReport)
+    assert len(Document().elements()) == 2
+
+
+def test_dirty_working_tree_error_is_repository_error() -> None:
+    assert issubclass(DirtyWorkingTreeError, RepositoryError)
+
+
+def test_pull_loads_model_after_success(
+    fake_repo: FakeRepository, saved_model: Path
+) -> None:
+    _seed()
+    vcs = _versioning(fake_repo)
+    vcs.commit("snap")
+
+    report = vcs.pull("origin")
+
+    assert fake_repo.pull_calls == [("origin", None)]
+    assert isinstance(report, SmartSwitchReport)
+    assert report.total == 2
+
+
+def test_pull_apply_to_model_false_returns_none(
+    fake_repo: FakeRepository, saved_model: Path
+) -> None:
+    _seed()
+    vcs = _versioning(fake_repo)
+    vcs.commit("snap")
+    live_ids = {e.id for e in Document().elements()}
+
+    report = vcs.pull("origin", apply_to_model=False)
+
+    assert report is None
+    assert fake_repo.pull_calls == [("origin", None)]
+    assert {e.id for e in Document().elements()} == live_ids
+
+
+def test_merge_loads_model_after_success(
+    fake_repo: FakeRepository, saved_model: Path
+) -> None:
+    beam, plate = _seed()
+    vcs = _versioning(fake_repo)
+    vcs.commit("base")
+    main = vcs.current_branch()
+
+    vcs.create_branch("feature", checkout=True)
+    Beam.create_rectangular(
+        RectSection(60, 120),
+        AxisPoints(Point3D(5, 0, 0), Point3D(5, 1000, 0), Point3D(5, 0, 1)),
+    )
+    vcs.commit("add a beam")
+    # Return to main model-aware so live matches HEAD (dirty guard is clean).
+    vcs.checkout(main)
+    assert len(Document().elements()) == 2
+
+    report = vcs.merge("feature", ff_only=True)
+
+    assert isinstance(report, SmartSwitchReport)
+    assert report.total == 3
+    assert beam.id in {e.id for e in Document().elements()}
+    assert plate.id in {e.id for e in Document().elements()}
+    assert len(Document().elements()) == 3
+
+
+def test_merge_conflict_does_not_reload_model(
+    fake_repo: FakeRepository, saved_model: Path
+) -> None:
+    _seed()
+    vcs = _versioning(fake_repo)
+    vcs.commit("snap")
+    live_ids = {e.id for e in Document().elements()}
+    imports_before = cadwork.file._state.import_calls
+
+    def _conflict(ref: str, *, ff_only: bool = False) -> None:
+        raise MergeConflictError(f"merge of {ref!r} produced conflicts")
+
+    fake_repo.merge = _conflict  # type: ignore[method-assign]
+
+    with pytest.raises(MergeConflictError):
+        vcs.merge("other")
+
+    assert {e.id for e in Document().elements()} == live_ids
+    assert cadwork.file._state.import_calls == imports_before
+
+
+def test_pull_conflict_does_not_reload_model(
+    fake_repo: FakeRepository, saved_model: Path
+) -> None:
+    _seed()
+    vcs = _versioning(fake_repo)
+    vcs.commit("snap")
+    live_ids = {e.id for e in Document().elements()}
+    imports_before = cadwork.file._state.import_calls
+
+    def _conflict(remote: str = "origin", ref: str | None = None) -> None:
+        raise MergeConflictError(f"pull from {remote} produced conflicts")
+
+    fake_repo.pull = _conflict  # type: ignore[method-assign]
+
+    with pytest.raises(MergeConflictError):
+        vcs.pull("origin")
+
+    assert {e.id for e in Document().elements()} == live_ids
+    assert cadwork.file._state.import_calls == imports_before
+
+
+def test_switch_to_aliases_model_aware_checkout(
+    fake_repo: FakeRepository, saved_model: Path
+) -> None:
+    beam, plate = _seed()
+    vcs = _versioning(fake_repo)
+    vcs.commit("base")
+    main = vcs.current_branch()
+    vcs.create_branch("feature", checkout=True)
+    Beam.create_rectangular(
+        RectSection(60, 120),
+        AxisPoints(Point3D(5, 0, 0), Point3D(5, 1000, 0), Point3D(5, 0, 1)),
+    )
+    vcs.commit("add a beam")
+
+    report = vcs.switch_to(main)
+
+    assert isinstance(report, SmartSwitchReport)
+    assert vcs.current_branch() == main
+    assert {e.id for e in Document().elements()} == {beam.id, plate.id}
+
+    # Pure-git escape hatch on the alias too.
+    vcs.checkout("feature", apply_to_model=True)
+    pure = vcs.switch_to(main, apply_to_model=False)
+    assert pure is None
+    assert vcs.current_branch() == main
 
 
 # ---- reload / switch: the version into the live model ----
@@ -251,7 +487,7 @@ def test_reload_model_smart_default_keeps_unchanged_elements_untouched(
     Document().delete([beam])
     assert len(Document().elements()) == 1
 
-    report = vcs.reload_model()
+    report = vcs.reload_model(force=True)
 
     assert isinstance(report, SmartSwitchReport)
     assert report.document_path == fake_repo.working_dir / MODEL_DIR / "model.3dc"
@@ -274,7 +510,7 @@ def test_reload_model_full_strategy_matches_the_legacy_behaviour(
     Document().delete([beam])
     assert len(Document().elements()) == 1
 
-    report = vcs.reload_model(strategy="full")
+    report = vcs.reload_model(strategy="full", force=True)
 
     assert isinstance(report, ReloadReport)
     assert report.imported == 2
@@ -443,10 +679,11 @@ def test_push_pull_delegate_to_the_repository(
     vcs.commit("snap")
 
     vcs.push("origin", "main")
-    vcs.pull("origin")
+    report = vcs.pull("origin", apply_to_model=False)
 
     assert fake_repo.push_calls == [("origin", "main", False)]
     assert fake_repo.pull_calls == [("origin", None)]
+    assert report is None
 
 
 def test_force_push_delegates_with_force(
@@ -545,7 +782,7 @@ def test_real_repo_in_model_dir_keeps_open_file_out_of_git(
         AxisPoints(Point3D(500, 0, 0), Point3D(500, 3000, 0), Point3D(500, 0, 1)),
     )
     vcs.commit("add a beam on feature")
-    vcs.checkout(main)
+    vcs.checkout(main, apply_to_model=False)
 
     assert vcs.current_branch() == main
     assert not vcs.status().is_dirty
@@ -569,9 +806,9 @@ def test_branch_delete_merge_diff_round_trip(
     # diff between base and feature shows the JSONL tree changed
     assert vcs.diff(main, "feature", stat=True)
 
-    # merge the feature back into main, fast-forward only
-    vcs.checkout(main)
-    vcs.merge("feature", ff_only=True)
+    # merge the feature back into main, fast-forward only (pure git for this loop)
+    vcs.checkout(main, apply_to_model=False)
+    vcs.merge("feature", ff_only=True, apply_to_model=False)
     assert (
         len(
             (fake_repo.working_dir / MODEL_DIR / "element.jsonl")

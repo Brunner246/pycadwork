@@ -17,6 +17,7 @@ VERSIONING_EXPORTS = (
     "CodecError",
     "CommitInfo",
     "CommitReport",
+    "DirtyWorkingTreeError",
     "GitNotAvailableError",
     "GitRepository",
     "LfsNotAvailableError",
