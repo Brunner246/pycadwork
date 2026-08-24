@@ -1,4 +1,4 @@
-"""find_ci_start resolution order and failure."""
+"""find_ci_start / find_3d_exe resolution order and failure."""
 
 from __future__ import annotations
 
@@ -9,6 +9,8 @@ import pytest
 from pycadwork.terminal.launcher import (
     EXECUTABLE_ENV_VAR,
     ExecutableNotFoundError,
+    exe_base_for,
+    find_3d_exe,
     find_ci_start,
 )
 
@@ -21,7 +23,16 @@ def _no_ambient_discovery(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "pycadwork.terminal.launcher.find_ci_start_in_registry", lambda: None
     )
+    monkeypatch.setattr("pycadwork.terminal.launcher.find_3d_in_registry", lambda: None)
+    monkeypatch.setattr("pycadwork.terminal.launcher.read_env_value", lambda name: None)
     monkeypatch.setattr("pycadwork.terminal.launcher.glob.glob", lambda pattern: [])
+
+
+def _plant_3d(base: Path) -> Path:
+    exe = base / "3d.x64" / "3d.exe"
+    exe.parent.mkdir(parents=True, exist_ok=True)
+    exe.write_text("")
+    return exe
 
 
 def test_explicit_path_wins(tmp_path: Path) -> None:
@@ -98,3 +109,65 @@ def test_falls_back_to_install_dir_glob(monkeypatch: pytest.MonkeyPatch) -> None
 def test_nothing_found_raises() -> None:
     with pytest.raises(ExecutableNotFoundError):
         find_ci_start()
+
+
+def test_find_3d_explicit_directory(tmp_path: Path) -> None:
+    base = tmp_path / "exe_2026"
+    exe = _plant_3d(base)
+    assert find_3d_exe(str(base)) == exe
+    assert exe_base_for(exe) == base
+
+
+def test_find_3d_explicit_missing_directory_raises(tmp_path: Path) -> None:
+    with pytest.raises(ExecutableNotFoundError, match="does not exist"):
+        find_3d_exe(str(tmp_path / "absent"))
+
+
+def test_find_3d_explicit_dir_without_binary_raises(tmp_path: Path) -> None:
+    base = tmp_path / "exe_2026"
+    base.mkdir()
+    with pytest.raises(ExecutableNotFoundError, match="3d.x64"):
+        find_3d_exe(str(base))
+
+
+def test_find_3d_folder_name_under_cadwork_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cadwork_dir = tmp_path / "cadwork.dir"
+    exe = _plant_3d(cadwork_dir / "exe_2026")
+    monkeypatch.setattr(
+        "pycadwork.terminal.launcher.read_env_value",
+        lambda name: str(cadwork_dir) if name == "CADWORK.DIR" else None,
+    )
+    assert find_3d_exe("exe_2026") == exe
+
+
+def test_find_3d_unresolved_name_raises() -> None:
+    with pytest.raises(ExecutableNotFoundError, match="could not resolve"):
+        find_3d_exe("exe_2026")
+
+
+def test_find_3d_falls_back_to_registry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    exe = _plant_3d(tmp_path / "exe_2026")
+    monkeypatch.setattr("pycadwork.terminal.launcher.find_3d_in_registry", lambda: exe)
+    assert find_3d_exe() == exe
+
+
+def test_find_3d_falls_back_to_install_dir_glob(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "pycadwork.terminal.launcher.glob.glob",
+        lambda pattern: [
+            r"C:\cadwork.dir\exe_2025\3d.x64\3d.exe",
+            r"C:\cadwork.dir\exe_2026\3d.x64\3d.exe",
+        ],
+    )
+    assert find_3d_exe() == Path(r"C:\cadwork.dir\exe_2026\3d.x64\3d.exe")
+
+
+def test_find_3d_nothing_found_raises() -> None:
+    with pytest.raises(ExecutableNotFoundError, match="could not locate 3d.exe"):
+        find_3d_exe()
