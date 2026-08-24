@@ -3,9 +3,11 @@
 ``build_parser`` wires the curated subcommands (``open``, ``install``,
 ``uninstall``, ``licence``, ``update``, ``print``); ``main`` parses, translates
 via :func:`pycadwork.terminal.translation.build_command`, and either prints the
-command line (``--dry-run``) or launches ``ci_start.exe`` through an injected
-:class:`~pycadwork.terminal.launcher.ProcessLauncher`. The ``launcher`` parameter
-is the test seam — production defaults to :class:`SubprocessLauncher`.
+command line (``--dry-run``) or launches cadwork through an injected
+:class:`~pycadwork.terminal.launcher.ProcessLauncher`. ``open`` starts
+``3d.exe`` directly; Filemanager verbs still start ``ci_start.exe``. The
+``launcher`` parameter is the test seam — production defaults to
+:class:`SubprocessLauncher`.
 """
 
 from __future__ import annotations
@@ -19,20 +21,28 @@ from pycadwork.terminal.launcher import (
     InvalidArgumentError,
     ProcessLauncher,
     SubprocessLauncher,
+    build_3d_runtime_env,
+    exe_base_for,
+    find_3d_exe,
     find_ci_start,
+)
+from pycadwork.terminal.registry import (
+    RegistryWriteError,
+    apply_env_values,
+    image_pids,
+    read_env_value,
+    restore_values,
 )
 from pycadwork.terminal.translation import build_command
 from pycadwork.terminal.values import UPDATE_CHOICES, USER_CHOICES
+
+#: 3d image name — 3d reads CADWORK_USP from the registry on demand.
+_3D_IMAGE = "3d.exe"
 
 
 def _common_options() -> argparse.ArgumentParser:
     """Options shared by every verb (placed after the verb on the line)."""
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument(
-        "--ci-start",
-        metavar="PATH",
-        help="path to ci_start.exe (else CADWORK_CI_START, PATH, or common dirs)",
-    )
     common.add_argument(
         "--log-file",
         metavar="PATH",
@@ -46,21 +56,36 @@ def _common_options() -> argparse.ArgumentParser:
     return common
 
 
+def _filemanager_options(common: argparse.ArgumentParser) -> argparse.ArgumentParser:
+    """Common options plus ``--ci-start`` for Filemanager verbs."""
+    fm = argparse.ArgumentParser(add_help=False, parents=[common])
+    fm.add_argument(
+        "--ci-start",
+        metavar="PATH",
+        help="path to ci_start.exe (else CADWORK_CI_START, PATH, or common dirs)",
+    )
+    return fm
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Construct the full ``cadwork`` argument parser."""
     common = _common_options()
     parser = argparse.ArgumentParser(
         prog="cadwork",
-        description="Modern CLI wrapper over cadwork's ci_start.exe command line.",
+        description=(
+            "Modern CLI wrapper: open launches 3d.exe; install / uninstall / "
+            "licence / update / print go through ci_start.exe."
+        ),
     )
     subparsers = parser.add_subparsers(dest="command", metavar="<command>")
+    filemanager = _filemanager_options(common)
 
     _add_open(subparsers, common)
-    _add_install(subparsers, common)
-    _add_uninstall(subparsers, common)
-    _add_licence(subparsers, common)
-    _add_update(subparsers, common)
-    _add_print(subparsers, common)
+    _add_install(subparsers, filemanager)
+    _add_uninstall(subparsers, filemanager)
+    _add_licence(subparsers, filemanager)
+    _add_update(subparsers, filemanager)
+    _add_print(subparsers, filemanager)
 
     return parser
 
@@ -72,7 +97,14 @@ def _add_open(subparsers, common: argparse.ArgumentParser) -> None:
         help="open a model file, optionally running a plugin",
     )
     p.add_argument("file", help="the model file to open (.3d / .3dc)")
-    p.add_argument("--exe", metavar="DIR", help="cadwork version folder (/EXE)")
+    p.add_argument(
+        "--exe",
+        metavar="DIR",
+        help=(
+            "cadwork version folder (exe_YYYY or a full path); selects which "
+            "3d.x64\\3d.exe to start"
+        ),
+    )
     p.add_argument(
         "--plugin",
         metavar="NAME",
@@ -98,8 +130,9 @@ def _add_open(subparsers, common: argparse.ArgumentParser) -> None:
         "--usp",
         metavar="DIR",
         help=(
-            "userprofile folder (/USP); only applies to a new 3d process "
-            "(close cadwork first — a running 3d keeps its loaded profile)"
+            "userprofile root folder (/USP), not the 3d subfolder; forwarded "
+            "as a Windows path (D:\\…). Errors if 3d.exe is already running "
+            "(as does any open)"
         ),
     )
     p.add_argument("--catdir", metavar="DIR", help="catalog folder (/CATDIR)")
@@ -249,23 +282,59 @@ def main(
         print(command.render_display())
         return 0
 
+    opening = args.command == "open"
     try:
-        executable = find_ci_start(args.ci_start)
+        if opening:
+            executable = find_3d_exe(getattr(args, "exe", None))
+        else:
+            executable = find_ci_start(getattr(args, "ci_start", None))
     except ExecutableNotFoundError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
+    live = launcher is None
     launcher = launcher or SubprocessLauncher()
     argv_out = command.render_argv()
     command_line = command.render_command_line(executable)
-    overlay = command.environment()
+    registry_overlay = command.environment()
+    child_env = dict(registry_overlay)
+    if opening:
+        child_env = {**build_3d_runtime_env(exe_base_for(executable)), **child_env}
+    display_name = "3d.exe" if opening else "ci_start.exe"
     print(f"launching: {command_line}", file=sys.stderr)
-    exit_code = launcher.launch(
-        executable,
-        argv_out,
-        env=overlay or None,
-        command_line=command_line,
-    )
+
+    def _run() -> int:
+        return launcher.launch(
+            executable,
+            argv_out,
+            env=child_env or None,
+            command_line=command_line,
+        )
+
+    if live and opening and image_pids(_3D_IMAGE):
+        print(
+            "error: 3d.exe is already running — close cadwork before launching "
+            "(a running 3d keeps its loaded version and userprofile)",
+            file=sys.stderr,
+        )
+        return 2
+
+    if live and registry_overlay:
+        # 3d reads CADWORK_USP from HKCU ENV when asked — not from /USP.
+        # Hold the override until 3d.exe exits, then restore.
+        previous = {name: read_env_value(name) for name in registry_overlay}
+        try:
+            apply_env_values(registry_overlay)
+        except RegistryWriteError as exc:
+            restore_values(previous)
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        try:
+            exit_code = _run()
+        finally:
+            restore_values(previous)
+    else:
+        exit_code = _run()
     if exit_code != 0:
-        print(f"ci_start.exe exited with code {exit_code}", file=sys.stderr)
+        print(f"{display_name} exited with code {exit_code}", file=sys.stderr)
     return exit_code

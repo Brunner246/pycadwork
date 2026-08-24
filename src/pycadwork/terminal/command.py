@@ -8,13 +8,14 @@ the filename first, e.g. ``file.2d /P A``). It renders three ways:
   and as a non-Windows ``subprocess.run`` sequence. Do not embed cadwork's
   ``KEY="VALUE"`` quotes here: Windows ``list2cmdline`` would escape them to
   ``\\"`` and cadwork would not see ``/USP="…"``.
-* :meth:`render_command_line` — the CreateProcess string cadwork's ``ci_start.exe``
-  actually parses (quoted file, quoted ``KEY="VALUE"`` when the value has a
-  space, backslash, or colon). :meth:`render_display` is this with the display
-  executable name.
-* :attr:`env` — extra process-environment pairs (``CADWORK_USP`` / ``CISTART_USP``
-  …). 3d resolves the userprofile from the environment, then the registry;
-  ``/USP`` is a ci_start flag and is not read by 3d itself.
+* :meth:`render_command_line` — the CreateProcess string cadwork actually
+  parses (quoted file, quoted ``KEY="VALUE"`` when the value has a space,
+  backslash, or colon). :meth:`render_display` is this with
+  :attr:`executable_display`.
+* :attr:`env` — extra process-environment *and* HKCU ENV pairs
+  (``CADWORK_USP`` …). 3d resolves the userprofile from the registry
+  (``get_3d_userprofil_path``), not from ``/USP``. The CLI writes those
+  registry values for the 3d session.
 """
 
 from __future__ import annotations
@@ -22,8 +23,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from os import PathLike
 
-#: Display name of the cadwork launcher in the human-readable rendering.
+#: Display name of the Filemanager launcher in the human-readable rendering.
 EXECUTABLE_DISPLAY_NAME = "ci_start.exe"
+
+#: Display name of the 3d binary for ``open --dry-run``.
+THREE_D_DISPLAY_NAME = "3d.exe"
 
 #: Characters in a value that make the display rendering wrap it in quotes.
 #: cadwork's help always writes ``/USP="D:\\…"``; a drive-letter colon is enough.
@@ -54,6 +58,7 @@ class CadworkCommand:
     tokens: tuple[str, ...] = ()
     file: str | None = None
     env: tuple[tuple[str, str], ...] = ()
+    executable_display: str = EXECUTABLE_DISPLAY_NAME
 
     def render_argv(self) -> list[str]:
         """The unquoted argument vector (tests / non-Windows ``subprocess.run``)."""
@@ -66,7 +71,7 @@ class CadworkCommand:
     def render_command_line(
         self, executable: str | PathLike[str] = EXECUTABLE_DISPLAY_NAME
     ) -> str:
-        """The quoted command line ``ci_start.exe`` parses via GetCommandLine.
+        """The quoted command line cadwork parses via GetCommandLine.
 
         ``executable`` is quoted when it contains a space, tab, backslash, or
         colon (a Windows path does). The file is always quoted, matching the
@@ -81,8 +86,8 @@ class CadworkCommand:
 
     def render_display(self) -> str:
         """The human-readable command line for ``--dry-run`` and errors."""
-        return self.render_command_line(EXECUTABLE_DISPLAY_NAME)
+        return self.render_command_line(self.executable_display)
 
     def environment(self) -> dict[str, str]:
-        """Process-environment overlay to apply when launching ci_start."""
+        """Process-environment overlay to apply when launching cadwork."""
         return dict(self.env)

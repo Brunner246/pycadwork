@@ -11,9 +11,10 @@ from __future__ import annotations
 
 import argparse
 
-from pycadwork.terminal.command import CadworkCommand
+from pycadwork.terminal.command import THREE_D_DISPLAY_NAME, CadworkCommand
 from pycadwork.terminal.launcher import InvalidArgumentError
 from pycadwork.terminal.values import (
+    ExistingDirectory,
     FrameSelection,
     Licence,
     UpdateTarget,
@@ -46,9 +47,9 @@ def _globals(args: argparse.Namespace) -> tuple[str, ...]:
 
 
 def _open(args: argparse.Namespace) -> CadworkCommand:
-    tokens: list[str] = []
-    if args.exe:
-        tokens.append(f"/EXE={args.exe}")
+    # /Console and /AlwaysIgnoreMultiOpenProtectDlg match launch_3d.ps1.
+    # --exe selects which 3d.exe to start; it is not a 3d slash flag.
+    tokens: list[str] = ["/Console", "/AlwaysIgnoreMultiOpenProtectDlg"]
     if args.plugin:
         tokens.append(f"/PLUGIN={args.plugin}")
     if args.run_program:
@@ -62,20 +63,21 @@ def _open(args: argparse.Namespace) -> CadworkCommand:
         tokens.append("/NO-GUI")
     env: list[tuple[str, str]] = []
     if args.usp:
-        tokens.append(f"/USP={args.usp}")
-        # 3d reads CADWORK_USP from the environment, then the registry — not /USP.
-        env.append(("CADWORK_USP", args.usp))
-        env.append(("CISTART_USP", args.usp))
+        usp = str(ExistingDirectory.userprofile(args.usp))
+        tokens.append(f"/USP={usp}")
+        # 3d reads CADWORK_USP from the HKCU ENV registry, not from /USP.
+        env.append(("CADWORK_USP", usp))
     if args.catdir:
-        tokens.append(f"/CATDIR={args.catdir}")
-        env.append(("CADWORK_CAT", args.catdir))
-        env.append(("CISTART_CAT", args.catdir))
+        catdir = str(ExistingDirectory.catalog(args.catdir))
+        tokens.append(f"/CATDIR={catdir}")
+        env.append(("CADWORK_CAT", catdir))
     if args.workdir:
         tokens.append(f"/WORKDIR={args.workdir}")
     return CadworkCommand(
         tokens=tuple(tokens) + _globals(args),
         file=args.file,
         env=tuple(env),
+        executable_display=THREE_D_DISPLAY_NAME,
     )
 
 

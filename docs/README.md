@@ -45,8 +45,9 @@ the [project README](../README.md) for the overview and quick start.
 
 ## Command line
 
-- [The `cadwork` terminal wrapper](terminal.md) — a modern CLI over cadwork's
-  `ci_start.exe` slash arguments; how to install it on `PATH` for PowerShell/cmd.
+- [The `cadwork` terminal wrapper](terminal.md) — `cadwork open` launches
+  `3d.exe`; Filemanager verbs wrap `ci_start.exe`. How to install the CLI on
+  `PATH` for PowerShell/cmd.
 
 ## Contributing
 

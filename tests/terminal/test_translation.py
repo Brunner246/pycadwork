@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 import pytest
 
 from pycadwork.terminal.cli import build_parser
@@ -19,24 +22,35 @@ def _command(argv: list[str]):
     [
         (
             ["open", "house.3d", "--plugin", "ExportBTL", "--exe", "exe_2026"],
-            ["house.3d", "/EXE=exe_2026", "/PLUGIN=ExportBTL"],
+            [
+                "house.3d",
+                "/Console",
+                "/AlwaysIgnoreMultiOpenProtectDlg",
+                "/PLUGIN=ExportBTL",
+            ],
         ),
         (
-            ["open", "m.3dc", "--usp", r"\\SRV\up", "--workdir", r"C:\My Docs"],
-            ["m.3dc", r"/USP=\\SRV\up", r"/WORKDIR=C:\My Docs"],
+            ["open", "m.3dc", "--workdir", r"C:\My Docs"],
+            [
+                "m.3dc",
+                "/Console",
+                "/AlwaysIgnoreMultiOpenProtectDlg",
+                r"/WORKDIR=C:\My Docs",
+            ],
         ),
         (
             [
                 "open",
                 r".\Downloads\test_elements_walls.3d",
                 "--exe",
-                r"D:\cadwork.dir\exe_2026",
+                "exe_2026",
                 "--run-program",
                 r"C:\Users\MichaelBrunner\Downloads\export_elements_jsonl.py",
             ],
             [
                 r".\Downloads\test_elements_walls.3d",
-                r"/EXE=D:\cadwork.dir\exe_2026",
+                "/Console",
+                "/AlwaysIgnoreMultiOpenProtectDlg",
                 r"/RUNPROGRAM=C:\Users\MichaelBrunner\Downloads\export_elements_jsonl.py",
             ],
         ),
@@ -50,13 +64,21 @@ def _command(argv: list[str]):
             ],
             [
                 "house.3d",
+                "/Console",
+                "/AlwaysIgnoreMultiOpenProtectDlg",
                 r"/RUNPROGRAM=C:\my_plugins\export.py",
                 "/NO-GUI",
             ],
         ),
         (
             ["open", "house.3d", "--plugin", "MyExport", "--no-gui"],
-            ["house.3d", "/PLUGIN=MyExport", "/NO-GUI"],
+            [
+                "house.3d",
+                "/Console",
+                "/AlwaysIgnoreMultiOpenProtectDlg",
+                "/PLUGIN=MyExport",
+                "/NO-GUI",
+            ],
         ),
         (
             ["install", "--silent", "--desktop-shortcut"],
@@ -110,40 +132,97 @@ def test_dry_run_display_quotes_file_and_pathy_values() -> None:
         ["open", "house.3d", "--exe", "exe_2026", "--workdir", r"C:\My Docs"]
     )
     assert command.render_display() == (
-        'ci_start.exe "house.3d" /EXE=exe_2026 /WORKDIR="C:\\My Docs"'
+        '3d.exe "house.3d" /Console /AlwaysIgnoreMultiOpenProtectDlg '
+        '/WORKDIR="C:\\My Docs"'
     )
 
 
-def test_usp_argv_stays_unquoted_but_command_line_quotes_drive_paths() -> None:
+def _win(path: Path) -> str:
+    return os.path.normpath(str(path.resolve()))
+
+
+def test_usp_argv_stays_unquoted_but_command_line_quotes_drive_paths(
+    tmp_path: Path,
+) -> None:
     """Windows list2cmdline will not quote /USP=D:\\… — cadwork needs the quotes
     in the CreateProcess string. render_argv must stay unquoted so those quotes
     are not escaped to \\".
     """
-    usp = r"D:\cadwork\userprofil_2026_charts"
+    usp_dir = tmp_path / "userprofil_2026_charts"
+    usp_dir.mkdir()
+    usp = _win(usp_dir)
     file = r"C:\Users\x\test_elements_walls.3d"
     command = _command(["open", file, "--exe", "exe_2026", "--usp", usp])
-    assert command.render_argv() == [file, "/EXE=exe_2026", f"/USP={usp}"]
-    assert command.render_display() == (
-        'ci_start.exe "C:\\Users\\x\\test_elements_walls.3d" '
-        '/EXE=exe_2026 /USP="D:\\cadwork\\userprofil_2026_charts"'
+    assert command.render_argv() == [
+        file,
+        "/Console",
+        "/AlwaysIgnoreMultiOpenProtectDlg",
+        f"/USP={usp}",
+    ]
+    display = command.render_display()
+    assert f'/USP="{usp}"' in display
+    assert command.render_command_line(
+        r"D:\cadwork.dir\exe_2026\3d.x64\3d.exe"
+    ) == (
+        '"D:\\cadwork.dir\\exe_2026\\3d.x64\\3d.exe" '
+        f'"C:\\Users\\x\\test_elements_walls.3d" '
+        f'/Console /AlwaysIgnoreMultiOpenProtectDlg /USP="{usp}"'
     )
-    assert command.render_command_line(r"D:\cadwork.dir\ci_start.exe") == (
-        '"D:\\cadwork.dir\\ci_start.exe" '
-        '"C:\\Users\\x\\test_elements_walls.3d" '
-        '/EXE=exe_2026 /USP="D:\\cadwork\\userprofil_2026_charts"'
-    )
-    assert command.environment() == {
-        "CADWORK_USP": usp,
-        "CISTART_USP": usp,
-    }
+    assert command.environment() == {"CADWORK_USP": usp}
 
 
-def test_catdir_sets_catalog_environment() -> None:
-    command = _command(["open", "house.3d", "--catdir", r"D:\cadwork\cadwork.cat"])
-    assert command.environment() == {
-        "CADWORK_CAT": r"D:\cadwork\cadwork.cat",
-        "CISTART_CAT": r"D:\cadwork\cadwork.cat",
-    }
+def test_usp_forward_slashes_become_backslashes(tmp_path: Path) -> None:
+    usp_dir = tmp_path / "userprofil_charts"
+    usp_dir.mkdir()
+    (usp_dir / "3d").mkdir()
+    command = _command(["open", "house.3d", "--usp", usp_dir.as_posix()])
+    expected = _win(usp_dir)
+    assert command.render_argv() == [
+        "house.3d",
+        "/Console",
+        "/AlwaysIgnoreMultiOpenProtectDlg",
+        f"/USP={expected}",
+    ]
+    if os.name == "nt":
+        assert "/" not in expected
+    assert command.environment() == {"CADWORK_USP": expected}
+
+
+def test_usp_trailing_3d_is_stripped_to_the_profile_root(tmp_path: Path) -> None:
+    usp_dir = tmp_path / "userprofil_charts"
+    usp_dir.mkdir()
+    three_d = usp_dir / "3d"
+    three_d.mkdir()
+    command = _command(["open", "house.3d", "--usp", str(three_d)])
+    expected = _win(usp_dir)
+    assert command.environment() == {"CADWORK_USP": expected}
+    assert command.render_argv()[-1] == f"/USP={expected}"
+
+
+def test_usp_missing_directory_is_value_error() -> None:
+    args = build_parser().parse_args(
+        ["open", "house.3d", "--usp", r"D:\no-such-userprofil-xyz"]
+    )
+    with pytest.raises(ValueError, match="does not exist"):
+        build_command(args)
+
+
+def test_catdir_sets_catalog_environment(tmp_path: Path) -> None:
+    cat = tmp_path / "cadwork.cat"
+    cat.mkdir()
+    command = _command(["open", "house.3d", "--catdir", cat.as_posix()])
+    expected = _win(cat)
+    assert command.environment() == {"CADWORK_CAT": expected}
+
+
+def test_exe_is_not_a_3d_slash_flag() -> None:
+    command = _command(["open", "house.3d", "--exe", "exe_2026"])
+    assert command.render_argv() == [
+        "house.3d",
+        "/Console",
+        "/AlwaysIgnoreMultiOpenProtectDlg",
+    ]
+    assert command.executable_display == "3d.exe"
 
 
 def test_display_quotes_licence_value() -> None:

@@ -12,9 +12,11 @@ that into an ``argparse`` error (exit code 2).
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 
 #: A plotter/laser frame spec: a ``;``-separated list of frames or ``n-m`` ranges.
 _FRAME_SPEC = re.compile(r"^\d+(-\d+)?(;\d+(-\d+)?)*$")
@@ -89,6 +91,48 @@ class UpdateTarget(Enum):
             return mapping[choice]
         except KeyError:
             raise ValueError(f"unknown update target {choice!r}") from None
+
+
+@dataclass(frozen=True, slots=True)
+class ExistingDirectory:
+    """An existing directory, rendered the way cadwork's ``/SLASH`` parser wants.
+
+    cadwork's help always writes ``/USP="D:\\…"`` with backslashes. A ``/`` inside
+    the value is a new flag to ``ci_start``'s ``GetCommandLineA`` scanner, so
+    ``D:/cadwork/userprofil_…`` is rejected and Filemanager falls back to the
+    registry default. :meth:`resolve` expands ``~``, makes the path absolute, and
+    uses ``os.path.normpath`` so the string is a Windows path.
+    """
+
+    value: str
+
+    @classmethod
+    def resolve(cls, raw: str, *, strip_trailing_3d: bool = False) -> ExistingDirectory:
+        stripped = raw.strip()
+        if not stripped:
+            raise ValueError("directory must be non-empty")
+        path = Path(stripped).expanduser()
+        try:
+            path = path.resolve()
+        except OSError as exc:
+            raise ValueError(f"directory does not exist: {raw}") from exc
+        if not path.is_dir():
+            raise ValueError(f"directory does not exist: {raw}")
+        if strip_trailing_3d and path.name.lower() == "3d" and path.parent.is_dir():
+            path = path.parent
+        return cls(os.path.normpath(str(path)))
+
+    @classmethod
+    def userprofile(cls, raw: str) -> ExistingDirectory:
+        """Userprofile *root* (Filemanager appends ``\\3d`` to make ``USERP``)."""
+        return cls.resolve(raw, strip_trailing_3d=True)
+
+    @classmethod
+    def catalog(cls, raw: str) -> ExistingDirectory:
+        return cls.resolve(raw, strip_trailing_3d=False)
+
+    def __str__(self) -> str:
+        return self.value
 
 
 class UserType(Enum):

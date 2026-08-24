@@ -1,8 +1,9 @@
 """In-memory fake of the :class:`~pycadwork.terminal.ProcessLauncher` Protocol.
 
 Records the ``(executable, argv)`` of every launch and returns a settable exit
-code, so the CLI's launch path is testable with no ``ci_start.exe`` and no spawned
-process. Also records the environment overlay and quoted command-line string.
+code, so the CLI's launch path is testable with no ``3d.exe`` / ``ci_start.exe``
+and no spawned process. Also records the environment overlay and quoted
+command-line string.
 """
 
 from __future__ import annotations
