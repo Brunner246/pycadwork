@@ -161,9 +161,7 @@ def test_usp_argv_stays_unquoted_but_command_line_quotes_drive_paths(
     ]
     display = command.render_display()
     assert f'/USP="{usp}"' in display
-    assert command.render_command_line(
-        r"D:\cadwork.dir\exe_2026\3d.x64\3d.exe"
-    ) == (
+    assert command.render_command_line(r"D:\cadwork.dir\exe_2026\3d.x64\3d.exe") == (
         '"D:\\cadwork.dir\\exe_2026\\3d.x64\\3d.exe" '
         f'"C:\\Users\\x\\test_elements_walls.3d" '
         f'/Console /AlwaysIgnoreMultiOpenProtectDlg /USP="{usp}"'

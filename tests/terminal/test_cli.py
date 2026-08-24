@@ -20,9 +20,7 @@ _OPEN_PREFIX = ["/Console", "/AlwaysIgnoreMultiOpenProtectDlg"]
 
 
 def _stub_3d(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "pycadwork.terminal.cli.find_3d_exe", lambda explicit: _3D
-    )
+    monkeypatch.setattr("pycadwork.terminal.cli.find_3d_exe", lambda explicit: _3D)
     monkeypatch.setattr(
         "pycadwork.terminal.cli.build_3d_runtime_env", lambda base: dict(_RUNTIME)
     )
@@ -38,9 +36,7 @@ def test_launch_passes_translated_argv_and_returns_exit_code(
         launcher=launcher,
     )
     assert code == 7
-    assert launcher.calls == [
-        (_3D, ["house.3d", *_OPEN_PREFIX, "/PLUGIN=ExportBTL"])
-    ]
+    assert launcher.calls == [(_3D, ["house.3d", *_OPEN_PREFIX, "/PLUGIN=ExportBTL"])]
     err = capsys.readouterr().err
     assert "launching:" in err  # echoed to stderr, not stdout
     assert "3d.exe exited with code 7" in err
@@ -120,7 +116,9 @@ def test_unknown_option_exits_2() -> None:
 
 def test_open_rejects_ci_start_flag() -> None:
     with pytest.raises(SystemExit) as exc:
-        main(["open", "house.3d", "--ci-start", "ci_start.exe"], launcher=FakeLauncher())
+        main(
+            ["open", "house.3d", "--ci-start", "ci_start.exe"], launcher=FakeLauncher()
+        )
     assert exc.value.code == 2
 
 
@@ -157,9 +155,7 @@ def test_filemanager_verb_still_uses_ci_start(
 ) -> None:
     launcher = FakeLauncher()
     ci = Path(r"D:\cadwork.dir\ci_start.exe")
-    monkeypatch.setattr(
-        "pycadwork.terminal.cli.find_ci_start", lambda explicit: ci
-    )
+    monkeypatch.setattr("pycadwork.terminal.cli.find_ci_start", lambda explicit: ci)
     code = main(["update", "all"], launcher=launcher)
     assert code == 0
     assert launcher.calls == [(ci, ["/LIVEUPDATE=ALL"])]
@@ -255,12 +251,8 @@ def test_open_usp_live_writes_registry_before_launch_and_restores_after(
     monkeypatch.setattr(
         "pycadwork.terminal.cli.SubprocessLauncher", lambda: RecordingLauncher()
     )
-    monkeypatch.setattr(
-        "pycadwork.terminal.cli.image_pids", lambda name: frozenset()
-    )
-    monkeypatch.setattr(
-        "pycadwork.terminal.cli.read_env_value", lambda name: "OLD"
-    )
+    monkeypatch.setattr("pycadwork.terminal.cli.image_pids", lambda name: frozenset())
+    monkeypatch.setattr("pycadwork.terminal.cli.read_env_value", lambda name: "OLD")
 
     def _apply(values):
         writes.append(dict(values))
@@ -329,12 +321,8 @@ def test_open_usp_errors_if_registry_write_fails(
     monkeypatch.setattr(
         "pycadwork.terminal.cli.SubprocessLauncher", lambda: RecordingLauncher()
     )
-    monkeypatch.setattr(
-        "pycadwork.terminal.cli.image_pids", lambda name: frozenset()
-    )
-    monkeypatch.setattr(
-        "pycadwork.terminal.cli.read_env_value", lambda name: None
-    )
+    monkeypatch.setattr("pycadwork.terminal.cli.image_pids", lambda name: frozenset())
+    monkeypatch.setattr("pycadwork.terminal.cli.read_env_value", lambda name: None)
     monkeypatch.setattr(
         "pycadwork.terminal.cli.restore_values",
         lambda previous: restored.append(dict(previous)),

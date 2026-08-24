@@ -23,12 +23,8 @@ def _no_ambient_discovery(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "pycadwork.terminal.launcher.find_ci_start_in_registry", lambda: None
     )
-    monkeypatch.setattr(
-        "pycadwork.terminal.launcher.find_3d_in_registry", lambda: None
-    )
-    monkeypatch.setattr(
-        "pycadwork.terminal.launcher.read_env_value", lambda name: None
-    )
+    monkeypatch.setattr("pycadwork.terminal.launcher.find_3d_in_registry", lambda: None)
+    monkeypatch.setattr("pycadwork.terminal.launcher.read_env_value", lambda name: None)
     monkeypatch.setattr("pycadwork.terminal.launcher.glob.glob", lambda pattern: [])
 
 
@@ -155,13 +151,13 @@ def test_find_3d_falls_back_to_registry(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     exe = _plant_3d(tmp_path / "exe_2026")
-    monkeypatch.setattr(
-        "pycadwork.terminal.launcher.find_3d_in_registry", lambda: exe
-    )
+    monkeypatch.setattr("pycadwork.terminal.launcher.find_3d_in_registry", lambda: exe)
     assert find_3d_exe() == exe
 
 
-def test_find_3d_falls_back_to_install_dir_glob(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_find_3d_falls_back_to_install_dir_glob(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(
         "pycadwork.terminal.launcher.glob.glob",
         lambda pattern: [

@@ -81,7 +81,9 @@ def write_env_value(name: str, value: str) -> bool:
 
 def apply_env_values(values: Mapping[str, str]) -> None:
     """Write every pair in ``values``. Raises if any write fails."""
-    failed = [name for name, value in values.items() if not write_env_value(name, value)]
+    failed = [
+        name for name, value in values.items() if not write_env_value(name, value)
+    ]
     if failed:
         raise RegistryWriteError(
             "could not write HKCU cadwork ENV values: " + ", ".join(failed)

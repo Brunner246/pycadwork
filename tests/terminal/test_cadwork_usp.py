@@ -97,8 +97,10 @@ def _pick_model() -> Path:
 def _prepare_usp(work: Path) -> Path:
     """A distinct USP copy so registry fallback is detectable."""
     dest = work / "userprofil_2026_it"
-    src = Path(os.environ["PYCADWORK_IT_USP"]) if os.environ.get("PYCADWORK_IT_USP") else (
-        _CHARTS_USP if _CHARTS_USP.is_dir() else None
+    src = (
+        Path(os.environ["PYCADWORK_IT_USP"])
+        if os.environ.get("PYCADWORK_IT_USP")
+        else (_CHARTS_USP if _CHARTS_USP.is_dir() else None)
     )
     if src is not None and src.is_dir():
         shutil.copytree(src, dest)
@@ -122,8 +124,7 @@ def _write_run_program(work: Path, result_path: Path) -> Path:
     result_literal = str(result_path.resolve())
     body_dir = str(body.parent.resolve())
     entry.write_text(
-        textwrap.dedent(
-            f"""\
+        textwrap.dedent(f"""\
             import json
             import sys
             import traceback
@@ -154,8 +155,7 @@ def _write_run_program(work: Path, result_path: Path) -> Path:
                     encoding="utf-8",
                 )
                 raise SystemExit(1) from exc
-            """
-        ),
+            """),
         encoding="utf-8",
     )
     return entry
@@ -182,7 +182,9 @@ def _wait_for_result(result_path: Path, timeout_s: float = RESULT_WAIT_S) -> dic
 
 def test_open_usp_is_the_profile_3d_reports() -> None:
     if _image_running("3d.exe"):
-        pytest.skip("3d.exe is already running — close it; /USP cannot switch a live instance")
+        pytest.skip(
+            "3d.exe is already running — close it; /USP cannot switch a live instance"
+        )
 
     work = _short_work_dir()
     saved_registry = {
@@ -223,9 +225,9 @@ def test_open_usp_is_the_profile_3d_reports() -> None:
         )
         registry = read_env_value("CADWORK_USP")
         if registry and not _under(usp, Path(registry)):
-            assert not _under(reported, Path(registry)), (
-                f"--usp {usp} was ignored; 3d still on registry profile {reported}"
-            )
+            assert not _under(
+                reported, Path(registry)
+            ), f"--usp {usp} was ignored; 3d still on registry profile {reported}"
     finally:
         restore_values(saved_registry)
         shutil.rmtree(work, ignore_errors=True)
