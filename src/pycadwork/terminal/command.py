@@ -2,29 +2,42 @@
 
 The translation layer builds one of these from parsed CLI arguments: an ordered
 tuple of ``/SLASH`` tokens plus an optional leading positional file (cadwork wants
-the filename first, e.g. ``file.2d /P A``). It renders two ways:
+the filename first, e.g. ``file.2d /P A``). It renders three ways:
 
-* :meth:`render_argv` — one argv element per token, *unquoted*. This is what goes
-  to :func:`subprocess.run`, which applies the OS-correct quoting itself, so a
-  value with spaces (``/USP=C:\\My Documents``) reaches cadwork as one argument.
-* :meth:`render_display` — the human-readable line for ``--dry-run`` and error
-  messages, quoting the file and any ``KEY=VALUE`` value that needs it, matching
-  how the cadwork docs write these commands (``/SET_LICENCE="..."``).
+* :meth:`render_argv` — one argv element per token, *unquoted*. Useful for tests
+  and as a non-Windows ``subprocess.run`` sequence. Do not embed cadwork's
+  ``KEY="VALUE"`` quotes here: Windows ``list2cmdline`` would escape them to
+  ``\\"`` and cadwork would not see ``/USP="…"``.
+* :meth:`render_command_line` — the CreateProcess string cadwork's ``ci_start.exe``
+  actually parses (quoted file, quoted ``KEY="VALUE"`` when the value has a
+  space, backslash, or colon). :meth:`render_display` is this with the display
+  executable name.
+* :attr:`env` — extra process-environment pairs (``CADWORK_USP`` / ``CISTART_USP``
+  …). 3d resolves the userprofile from the environment, then the registry;
+  ``/USP`` is a ci_start flag and is not read by 3d itself.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from os import PathLike
 
 #: Display name of the cadwork launcher in the human-readable rendering.
 EXECUTABLE_DISPLAY_NAME = "ci_start.exe"
 
 #: Characters in a value that make the display rendering wrap it in quotes.
+#: cadwork's help always writes ``/USP="D:\\…"``; a drive-letter colon is enough.
 _QUOTE_TRIGGERS = (" ", "\t", "\\", ":")
 
 
 def _needs_quote(value: str) -> bool:
     return any(trigger in value for trigger in _QUOTE_TRIGGERS)
+
+
+def _quote_if_needed(value: str) -> str:
+    if _needs_quote(value):
+        return f'"{value}"'
+    return value
 
 
 def _display_token(token: str) -> str:
@@ -40,19 +53,36 @@ class CadworkCommand:
 
     tokens: tuple[str, ...] = ()
     file: str | None = None
+    env: tuple[tuple[str, str], ...] = ()
 
     def render_argv(self) -> list[str]:
-        """The argument vector for :func:`subprocess.run` (no manual quoting)."""
+        """The unquoted argument vector (tests / non-Windows ``subprocess.run``)."""
         argv: list[str] = []
         if self.file is not None:
             argv.append(self.file)
         argv.extend(self.tokens)
         return argv
 
-    def render_display(self) -> str:
-        """The human-readable command line for ``--dry-run`` and errors."""
-        parts: list[str] = [EXECUTABLE_DISPLAY_NAME]
+    def render_command_line(
+        self, executable: str | PathLike[str] = EXECUTABLE_DISPLAY_NAME
+    ) -> str:
+        """The quoted command line ``ci_start.exe`` parses via GetCommandLine.
+
+        ``executable`` is quoted when it contains a space, tab, backslash, or
+        colon (a Windows path does). The file is always quoted, matching the
+        ``"%1"`` file-association form. ``KEY=VALUE`` tokens use cadwork's
+        ``KEY="VALUE"`` form when the value needs it.
+        """
+        parts: list[str] = [_quote_if_needed(str(executable))]
         if self.file is not None:
             parts.append(f'"{self.file}"')
         parts.extend(_display_token(token) for token in self.tokens)
         return " ".join(parts)
+
+    def render_display(self) -> str:
+        """The human-readable command line for ``--dry-run`` and errors."""
+        return self.render_command_line(EXECUTABLE_DISPLAY_NAME)
+
+    def environment(self) -> dict[str, str]:
+        """Process-environment overlay to apply when launching ci_start."""
+        return dict(self.env)

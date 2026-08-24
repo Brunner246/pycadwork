@@ -60,13 +60,23 @@ def _open(args: argparse.Namespace) -> CadworkCommand:
                 "(cadwork /NO-GUI only applies when running a plugin)"
             )
         tokens.append("/NO-GUI")
+    env: list[tuple[str, str]] = []
     if args.usp:
         tokens.append(f"/USP={args.usp}")
+        # 3d reads CADWORK_USP from the environment, then the registry — not /USP.
+        env.append(("CADWORK_USP", args.usp))
+        env.append(("CISTART_USP", args.usp))
     if args.catdir:
         tokens.append(f"/CATDIR={args.catdir}")
+        env.append(("CADWORK_CAT", args.catdir))
+        env.append(("CISTART_CAT", args.catdir))
     if args.workdir:
         tokens.append(f"/WORKDIR={args.workdir}")
-    return CadworkCommand(tokens=tuple(tokens) + _globals(args), file=args.file)
+    return CadworkCommand(
+        tokens=tuple(tokens) + _globals(args),
+        file=args.file,
+        env=tuple(env),
+    )
 
 
 def _install(args: argparse.Namespace) -> CadworkCommand:

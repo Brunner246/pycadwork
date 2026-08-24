@@ -89,3 +89,64 @@ def test_missing_executable_returns_2(
     code = main(["update"], launcher=FakeLauncher())
     assert code == 2
     assert "nope" in capsys.readouterr().err
+
+
+def test_open_usp_passes_env_and_quoted_command_line(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    launcher = FakeLauncher()
+    exe = Path(r"D:\cadwork.dir\ci_start.exe")
+    monkeypatch.setattr(
+        "pycadwork.terminal.cli.find_ci_start", lambda explicit: exe
+    )
+    usp = r"D:\cadwork\userprofil_2026_charts"
+    file = r"C:\Users\MichaelBrunner\Downloads\test_elements_walls.3d"
+    code = main(
+        ["open", file, "--exe", "exe_2026", "--usp", usp],
+        launcher=launcher,
+    )
+    assert code == 0
+    assert launcher.last_argv == [file, "/EXE=exe_2026", f"/USP={usp}"]
+    assert launcher.last_env == {"CADWORK_USP": usp, "CISTART_USP": usp}
+    command_line = launcher.last_command_line
+    assert command_line is not None
+    assert f'/USP="{usp}"' in command_line
+    assert f'"{file}"' in command_line
+    err = capsys.readouterr().err
+    assert f'/USP="{usp}"' in err  # stderr matches what cadwork will see
+
+
+def test_windows_subprocess_uses_command_string_not_list2cmdline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    from pycadwork.terminal.launcher import SubprocessLauncher
+
+    recorded: dict[str, object] = {}
+
+    def _run(args, **kwargs):
+        recorded["args"] = args
+        recorded["env"] = kwargs.get("env")
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr("pycadwork.terminal.launcher.os.name", "nt")
+    monkeypatch.setattr("pycadwork.terminal.launcher.subprocess.run", _run)
+    usp = r"D:\cadwork\userprofil_2026_charts"
+    command_line = (
+        r'"D:\cadwork.dir\ci_start.exe" '
+        r'"C:\Users\x\file.3d" '
+        rf'/USP="{usp}"'
+    )
+    code = SubprocessLauncher().launch(
+        Path(r"D:\cadwork.dir\ci_start.exe"),
+        [r"C:\Users\x\file.3d", f"/USP={usp}"],
+        env={"CADWORK_USP": usp},
+        command_line=command_line,
+    )
+    assert code == 0
+    assert recorded["args"] == command_line
+    assert isinstance(recorded["args"], str)
+    env = recorded["env"]
+    assert isinstance(env, dict)
+    assert env["CADWORK_USP"] == usp

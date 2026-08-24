@@ -94,7 +94,14 @@ def _add_open(subparsers, common: argparse.ArgumentParser) -> None:
             "--run-program"
         ),
     )
-    p.add_argument("--usp", metavar="DIR", help="userprofile folder (/USP)")
+    p.add_argument(
+        "--usp",
+        metavar="DIR",
+        help=(
+            "userprofile folder (/USP); only applies to a new 3d process "
+            "(close cadwork first — a running 3d keeps its loaded profile)"
+        ),
+    )
     p.add_argument("--catdir", metavar="DIR", help="catalog folder (/CATDIR)")
     p.add_argument("--workdir", metavar="DIR", help="projects folder (/WORKDIR)")
 
@@ -250,8 +257,15 @@ def main(
 
     launcher = launcher or SubprocessLauncher()
     argv_out = command.render_argv()
-    print(f"launching: {executable} {' '.join(argv_out)}", file=sys.stderr)
-    exit_code = launcher.launch(executable, argv_out)
+    command_line = command.render_command_line(executable)
+    overlay = command.environment()
+    print(f"launching: {command_line}", file=sys.stderr)
+    exit_code = launcher.launch(
+        executable,
+        argv_out,
+        env=overlay or None,
+        command_line=command_line,
+    )
     if exit_code != 0:
         print(f"ci_start.exe exited with code {exit_code}", file=sys.stderr)
     return exit_code

@@ -15,7 +15,7 @@ import glob
 import os
 import shutil
 import subprocess
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
@@ -51,16 +51,43 @@ class ProcessLauncher(Protocol):
     """The narrow port the CLI depends on to run cadwork.
 
     Implementations run ``executable`` with ``argv`` and return its exit code.
+    ``command_line``, when given, is the already-quoted CreateProcess string
+    (cadwork parses ``/USP="D:\\…"`` from GetCommandLine, which Windows
+    ``list2cmdline`` will not produce from an argv list). ``env`` is an overlay
+    merged onto the current process environment.
     """
 
-    def launch(self, executable: Path, argv: Sequence[str]) -> int: ...
+    def launch(
+        self,
+        executable: Path,
+        argv: Sequence[str],
+        *,
+        env: Mapping[str, str] | None = None,
+        command_line: str | None = None,
+    ) -> int: ...
 
 
 class SubprocessLauncher:
     """Launches cadwork via :func:`subprocess.run`, returning its exit code."""
 
-    def launch(self, executable: Path, argv: Sequence[str]) -> int:
-        result = subprocess.run([str(executable), *argv])
+    def launch(
+        self,
+        executable: Path,
+        argv: Sequence[str],
+        *,
+        env: Mapping[str, str] | None = None,
+        command_line: str | None = None,
+    ) -> int:
+        merged: dict[str, str] | None = None
+        if env:
+            merged = os.environ.copy()
+            merged.update(env)
+        if os.name == "nt" and command_line is not None:
+            # String form: CreateProcess gets this text as-is, so cadwork sees
+            # /USP="D:\…" rather than list2cmdline's unquoted /USP=D:\…
+            result = subprocess.run(command_line, env=merged)
+        else:
+            result = subprocess.run([str(executable), *argv], env=merged)
         return result.returncode
 
 

@@ -114,6 +114,38 @@ def test_dry_run_display_quotes_file_and_pathy_values() -> None:
     )
 
 
+def test_usp_argv_stays_unquoted_but_command_line_quotes_drive_paths() -> None:
+    """Windows list2cmdline will not quote /USP=D:\\… — cadwork needs the quotes
+    in the CreateProcess string. render_argv must stay unquoted so those quotes
+    are not escaped to \\".
+    """
+    usp = r"D:\cadwork\userprofil_2026_charts"
+    file = r"C:\Users\x\test_elements_walls.3d"
+    command = _command(["open", file, "--exe", "exe_2026", "--usp", usp])
+    assert command.render_argv() == [file, "/EXE=exe_2026", f"/USP={usp}"]
+    assert command.render_display() == (
+        'ci_start.exe "C:\\Users\\x\\test_elements_walls.3d" '
+        '/EXE=exe_2026 /USP="D:\\cadwork\\userprofil_2026_charts"'
+    )
+    assert command.render_command_line(r"D:\cadwork.dir\ci_start.exe") == (
+        '"D:\\cadwork.dir\\ci_start.exe" '
+        '"C:\\Users\\x\\test_elements_walls.3d" '
+        '/EXE=exe_2026 /USP="D:\\cadwork\\userprofil_2026_charts"'
+    )
+    assert command.environment() == {
+        "CADWORK_USP": usp,
+        "CISTART_USP": usp,
+    }
+
+
+def test_catdir_sets_catalog_environment() -> None:
+    command = _command(["open", "house.3d", "--catdir", r"D:\cadwork\cadwork.cat"])
+    assert command.environment() == {
+        "CADWORK_CAT": r"D:\cadwork\cadwork.cat",
+        "CISTART_CAT": r"D:\cadwork\cadwork.cat",
+    }
+
+
 def test_display_quotes_licence_value() -> None:
     command = _command(["licence", "set", "WEB Licence:00.000.0#1;PW"])
     assert command.render_display() == (

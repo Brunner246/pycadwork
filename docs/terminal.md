@@ -197,6 +197,10 @@ list.
 | `--plugin NAME` | `/PLUGIN` | Plugin folder name in `API.x64` |
 | `--run-program PATH` | `/RUNPROGRAM` | Full path to a `.py` or `.dll` anywhere (not only `API.x64`) |
 | `--no-gui` | `/NO-GUI` | Headless; requires `--plugin` or `--run-program` |
+| `--usp DIR` | `/USP` | Userprofile folder. 3d reads `CADWORK_USP` from the **environment**, then the registry — not `/USP` itself. Close any running 3d first; a live instance keeps the profile it already loaded. |
+| `--catdir DIR` | `/CATDIR` | Catalog folder (`CADWORK_CAT` / `CISTART_CAT` on the launched process). |
+| `--exe DIR` | `/EXE` | Version folder. Prefer a full path (`D:\cadwork.dir\exe_2026`) matching cadwork's own help. |
+| `--workdir DIR` | `/WORKDIR` | Projects folder. |
 
 ```powershell
 cadwork open .\Downloads\test_elements_walls.3d --exe D:\cadwork.dir\exe_2026 `
@@ -209,6 +213,12 @@ cadwork open house.3d --run-program C:\my_plugins\export.py --no-gui
 
 cadwork open house.3d --plugin MyExport --no-gui
 # runs: ci_start.exe "house.3d" /PLUGIN=MyExport /NO-GUI
+
+# different userprofile than the registry default (close 3d first)
+cadwork open "C:\Users\MichaelBrunner\Downloads\test_elements_walls.3d" `
+    --exe D:\cadwork.dir\exe_2026 --usp D:\cadwork\userprofil_2026_charts
+# runs: "D:\cadwork.dir\ci_start.exe" "C:\Users\...\test_elements_walls.3d" /EXE="D:\cadwork.dir\exe_2026" /USP="D:\cadwork\userprofil_2026_charts"
+# and sets CADWORK_USP / CISTART_USP on that process so 3d does not fall back to the registry profile
 ```
 
 `print` uses
@@ -235,7 +245,10 @@ cadwork open "C:\My Projects\house.3d" --workdir "C:\My Documents"
 ```
 
 Reach for `--dry-run` whenever you're unsure how a line will be translated — it
-prints the exact `ci_start.exe` command without executing it.
+prints the exact `ci_start.exe` command without executing it. A real launch uses
+that same quoting (not Windows argv/`list2cmdline`): cadwork scans
+`GetCommandLine` for `/USP="…"`, and an unquoted `/USP=D:\…` is ignored, so 3d
+opens on the registry userprofile instead.
 
 ## Output
 
@@ -244,5 +257,5 @@ clean for piping) and reports a non-zero exit code; on success it is otherwise
 quiet — `ci_start.exe` hands off to cadwork and returns immediately:
 
 ```
-launching: D:\cadwork.dir\ci_start.exe "C:\Users\...\house.3d"
+launching: "D:\cadwork.dir\ci_start.exe" "C:\Users\...\house.3d"
 ```
