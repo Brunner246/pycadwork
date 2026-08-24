@@ -61,7 +61,26 @@ def test_read_env_value_absent_name_is_none() -> None:
     assert registry.read_env_value("pycadwork-no-such-value-xyz") is None
 
 
-def test_override_env_values_restores_absent_name() -> None:
+def test_override_env_values_restores_absent_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store: dict[str, str] = {}
+
+    def _read(name: str) -> str | None:
+        return store.get(name)
+
+    def _write(name: str, value: str) -> bool:
+        store[name] = value
+        return True
+
+    def _delete(name: str) -> bool:
+        store.pop(name, None)
+        return True
+
+    monkeypatch.setattr(registry, "read_env_value", _read)
+    monkeypatch.setattr(registry, "write_env_value", _write)
+    monkeypatch.setattr(registry, "delete_env_value", _delete)
+
     name = "PYCADWORK_IT_PROBE"
     assert registry.read_env_value(name) is None
     with registry.override_env_values({name: "hello"}):

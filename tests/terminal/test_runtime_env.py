@@ -27,7 +27,7 @@ def test_runtime_env_sets_exe_and_lib_and_prepends_existing_dirs(
     pclib = _mkdir(base / "pclib.x64")
     three_d = _mkdir(base / "3d.x64")
     _mkdir(base / "lxsdk.x64" / "bin")
-    monkeypatch.setenv("PATH", r"C:\Windows\system32")
+    monkeypatch.setenv("PATH", "existing")
 
     env = build_3d_runtime_env(base)
     assert env["CADWORK_EXE"] == str(base)
@@ -36,7 +36,7 @@ def test_runtime_env_sets_exe_and_lib_and_prepends_existing_dirs(
     assert parts[0] == str(pclib)
     assert str(base / "lxsdk.x64" / "bin") in parts
     assert str(three_d) in parts
-    assert parts[-1] == r"C:\Windows\system32"
+    assert parts[-1] == "existing"
     assert "TCLLIBPATH" not in env
 
 

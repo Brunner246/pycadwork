@@ -10,7 +10,7 @@ the filename first, e.g. ``file.2d /P A``). It renders three ways:
   ``\\"`` and cadwork would not see ``/USP="…"``.
 * :meth:`render_command_line` — the CreateProcess string cadwork actually
   parses (quoted file, quoted ``KEY="VALUE"`` when the value has a space,
-  backslash, or colon). :meth:`render_display` is this with
+  backslash, colon, or forward slash). :meth:`render_display` is this with
   :attr:`executable_display`.
 * :attr:`env` — extra process-environment *and* HKCU ENV pairs
   (``CADWORK_USP`` …). 3d resolves the userprofile from the registry
@@ -30,8 +30,9 @@ EXECUTABLE_DISPLAY_NAME = "ci_start.exe"
 THREE_D_DISPLAY_NAME = "3d.exe"
 
 #: Characters in a value that make the display rendering wrap it in quotes.
-#: cadwork's help always writes ``/USP="D:\\…"``; a drive-letter colon is enough.
-_QUOTE_TRIGGERS = (" ", "\t", "\\", ":")
+#: cadwork's help always writes ``/USP="D:\\…"``. A ``/`` inside an unquoted
+#: value is a new flag to GetCommandLineA, so POSIX paths must be quoted too.
+_QUOTE_TRIGGERS = (" ", "\t", "\\", ":", "/")
 
 
 def _needs_quote(value: str) -> bool:
@@ -73,10 +74,11 @@ class CadworkCommand:
     ) -> str:
         """The quoted command line cadwork parses via GetCommandLine.
 
-        ``executable`` is quoted when it contains a space, tab, backslash, or
-        colon (a Windows path does). The file is always quoted, matching the
-        ``"%1"`` file-association form. ``KEY=VALUE`` tokens use cadwork's
-        ``KEY="VALUE"`` form when the value needs it.
+        ``executable`` is quoted when it contains a space, tab, backslash,
+        colon, or forward slash (a Windows or POSIX path does). The file is
+        always quoted, matching the ``"%1"`` file-association form.
+        ``KEY=VALUE`` tokens use cadwork's ``KEY="VALUE"`` form when the
+        value needs it.
         """
         parts: list[str] = [_quote_if_needed(str(executable))]
         if self.file is not None:
