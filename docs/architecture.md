@@ -12,6 +12,7 @@ flowchart TD
         building["building/<br/>StoreyAssigner · StoreyStack"]
         geometry["geometry/<br/>Point3D · Vector3D · Frame3D<br/>Brep · AABB/OBB · RTreeIndex"]
         utility["utility/<br/>DisplayRefreshScope · batch_apply"]
+        work["work/<br/>WorkUnit · WorkReport"]
         persistence["persistence/<br/>Synchronizer · gateways · UnitOfWork"]
         reporting["reporting/<br/>cutting_list · material_totals · by_*"]
         versioning["versioning/<br/>ModelVersioning · SnapshotCodec · GitRepository"]
@@ -23,16 +24,17 @@ flowchart TD
     cwapi3d["cwapi3d"]
     cadwork["cadwork 3D"]
     
-    app --> document & element & cover & connectivity & building & utility & persistence & reporting & versioning
+    app --> document & element & cover & connectivity & building & utility & work & persistence & reporting & versioning
     document --> element
     element --> geometry
     cover --> element
     connectivity --> element & geometry
     building --> element & geometry
+    work --> utility
     persistence --> document & element
     reporting --> persistence
     versioning --> persistence & document
-    document & element & cover & connectivity & building & utility & persistence & versioning --> seam
+    document & element & cover & connectivity & building & utility & work & persistence & versioning --> seam
     persistence --> sqlite
     versioning --> git
     seam --> cwapi3d --> cadwork
@@ -60,6 +62,7 @@ stable types crossing the seam are the aliases and value objects in
 | `pycadwork.connectivity`    | `find_connected` and `build_connection_graph` / `ConnectionGraph` — which elements touch or intersect, and the whole-model contact graph.                                                                                                |
 | `pycadwork.building`        | `StoreyAssigner` and the pure `StoreyStack` — classify elements into a building's storeys from their vertical extent (BMT building/storey structure).                                                                                    |
 | `pycadwork.utility`         | Cross-cutting helpers: `DisplayRefreshScope`, `batch_apply`, and `auto_*` decorators.                                                                                                                                                    |
+| `pycadwork.work`            | `WorkUnit` — a context manager over tracked live elements: snapshot `batch_apply` attributes, `apply` / `run`, restore on error, optional cadwork Undo, frozen `WorkReport`. Not `persistence.UnitOfWork`.                               |
 | `pycadwork.persistence`     | Mirror the running model to a normalized SQL database and back — `Synchronizer` (`pull` / `push`), Table Data Gateways, a `UnitOfWork`, and frozen record DTOs.                                                                          |
 | `pycadwork.reporting`       | Bill of materials over a `ModelSnapshot` — `cutting_list`, `material_totals`, composable `by_*` grouping dimensions, and CSV writers. Pure functions; works on a live read or a pulled SQL store.                                        |
 | `pycadwork.rules`           | Validate a `ModelSnapshot` against declarative rules — `check`, composable built-in rule factories, `ElementRule` / `ModelRule`, severities, and a CSV writer. Pure functions reusing reporting's `SnapshotIndex`; works on a live read or a pulled SQL store. |

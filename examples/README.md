@@ -22,6 +22,7 @@ calls them in order, with comments and `print(...)` of the interesting result.
 | [`raycast.py`](raycast.py) | `cast_ray`: which elements a ray hits (nearest-first `RayCastResult` / `RayHit`), the `radius` thickness, and `among=` |
 | [`building_storeys.py`](building_storeys.py) | The pure `StoreyStack` classifier and the model-driven `StoreyAssigner` |
 | [`utilities.py`](utilities.py) | `DisplayRefreshScope` (context, `@auto_recreate`, `@DisplayRefreshScope()`, `recreate_after`), `suppressed_display`, and `batch_apply` |
+| [`work.py`](work.py) | `pycadwork.work.WorkUnit`: `apply`, `run`, rollback, `undo=False`, frozen `WorkReport` diffs. Not SQL `UnitOfWork` |
 | [`decorators.py`](decorators.py) | The pure-Python class decorators: `auto_repr` (bare + fields), `auto_eq` / `auto_hash`, and `deprecated` |
 | [`persistence.py`](persistence.py) | `open_sqlite`, `Synchronizer` pull/push, `ModelReader`, `diff`, `UnitOfWork`, and raw SQL |
 | [`persistence_queries.py`](persistence_queries.py) | Read the model into SQL, then query it back: typed `Gateway` reads, a cross-table SQL JOIN report, and the `BuildingQuery` facade (building → storeys → elements) |
