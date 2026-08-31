@@ -320,6 +320,13 @@ class ElementsAdapter:
             for e in element_controller.get_active_identifiable_element_ids()
         ]
 
+    # ---- undo registration ----
+
+    def add_modified_elements_to_undo(self, eids: list[ElementId]) -> None:
+        import element_controller
+
+        element_controller.add_modified_elements_to_undo(list(eids))
+
     # ---- ray casting ----
 
     def cast_ray(

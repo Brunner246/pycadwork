@@ -64,6 +64,21 @@ def test_versioning_surface_is_re_exported_and_listed():
         assert name in pycadwork.__all__, f"{name} missing from pycadwork.__all__"
 
 
+WORK_EXPORTS = (
+    "AttributeDiff",
+    "WorkReport",
+    "WorkStatus",
+    "WorkStep",
+    "WorkUnit",
+)
+
+
+def test_work_surface_is_re_exported_and_listed():
+    for name in WORK_EXPORTS:
+        assert hasattr(pycadwork, name), f"pycadwork.{name} is not re-exported"
+        assert name in pycadwork.__all__, f"{name} missing from pycadwork.__all__"
+
+
 def test_connection_graph_has_no_type_specific_accessors():
     # ``nodes`` is excluded: it is the graph's universal accessor returning
     # ``list[Element]`` (any type), not a per-``Node`` discriminator.
