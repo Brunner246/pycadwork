@@ -205,11 +205,19 @@ from pycadwork.value_types import (
     Weight,
     Width,
 )
+from pycadwork.work import (
+    AttributeDiff,
+    WorkReport,
+    WorkStatus,
+    WorkStep,
+    WorkUnit,
+)
 
 __all__ = [
     "REGISTRY",
     "Aggregate",
     "Angle",
+    "AttributeDiff",
     "AttributeRecord",
     "AuxiliaryElement",
     "AxisAlignedBoundingBox",
@@ -325,6 +333,10 @@ __all__ = [
     "Wall",
     "Weight",
     "Width",
+    "WorkReport",
+    "WorkStatus",
+    "WorkStep",
+    "WorkUnit",
     "any_element",
     "assigned_to_storey",
     "auto_eq",
