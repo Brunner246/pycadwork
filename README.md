@@ -101,6 +101,7 @@ The full guide lives in [`docs/`](docs/):
 | [Rules](docs/rules.md) | `check`, composable model-validation rules, `ElementRule` / `ModelRule`, severities |
 | [Versioning](docs/versioning.md) | A git workflow over the `.3d/c` with diffable JSONL                                   |
 | [Utilities](docs/utilities.md) | `DisplayRefreshScope`, `batch_apply`, `auto_*` decorators                             |
+| [Work units](docs/work.md) | `pycadwork.work` — `WorkUnit` bulk live-model `apply` / `run`, rollback, Undo, `WorkReport` |
 | [Terminal wrapper](docs/terminal.md) | The `cadwork` CLI (`open` launches `3d.exe`; Filemanager verbs wrap `ci_start.exe`)     |
 | [Testing](docs/testing.md) | The fake-adapter fixture and how to run the suite                                     |
 | [Design principles](docs/design-principles.md) | The conventions that run through the whole codebase                                   |

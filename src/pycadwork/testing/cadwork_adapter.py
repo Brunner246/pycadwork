@@ -225,6 +225,8 @@ class FakeState:
     display_refresh_disable_calls: int = 0
     display_refresh_enable_calls: int = 0
     recreate_calls: list[list[ElementId]] = field(default_factory=list)
+    #: ``FakeElementsAdapter.add_modified_elements_to_undo`` recordings.
+    modified_undo_calls: list[list[ElementId]] = field(default_factory=list)
     # ---- project metadata (global, element-agnostic) ----
     project_guid: str = "fake-project-guid"
     project_name: str = ""
@@ -627,6 +629,11 @@ class FakeElementsAdapter:
             if hits:
                 out.append((ElementId(eid), hits))
         return out
+
+    # ---- undo registration ----
+
+    def add_modified_elements_to_undo(self, eids: list[ElementId]) -> None:
+        self._state.modified_undo_calls.append(list(eids))
 
 
 class FakeAttributesAdapter:
