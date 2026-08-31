@@ -149,7 +149,9 @@ class WorkUnit:
             )
 
     def _record_step(self, name: str, status: WorkStatus) -> None:
-        self._steps.append(WorkStep(name=name, status=status, diffs=self._diffs_from_snapshot()))
+        self._steps.append(
+            WorkStep(name=name, status=status, diffs=self._diffs_from_snapshot())
+        )
 
     def _diffs_from_snapshot(self) -> tuple[AttributeDiff, ...]:
         diffs: list[AttributeDiff] = []
@@ -181,7 +183,9 @@ class WorkUnit:
 
     def _freeze(self, status: WorkStatus) -> None:
         if status is WorkStatus.ROLLED_BACK:
-            steps = tuple(replace(step, status=WorkStatus.ROLLED_BACK) for step in self._steps)
+            steps = tuple(
+                replace(step, status=WorkStatus.ROLLED_BACK) for step in self._steps
+            )
         else:
             steps = tuple(self._steps)
         self._report = WorkReport(

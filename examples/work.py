@@ -90,7 +90,9 @@ def demo_report(beams: list[Beam]) -> None:
     print("report.status =", work.report.status.value)
     print("element_ids   =", work.report.element_ids)
     for diff in work.report.diffs:
-        print(f"  id={diff.element_id} {diff.attribute}: {diff.before!r} -> {diff.after!r}")
+        print(
+            f"  id={diff.element_id} {diff.attribute}: {diff.before!r} -> {diff.after!r}"
+        )
 
 
 def run() -> None:
