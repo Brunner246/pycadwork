@@ -29,6 +29,7 @@ Modules:
 * :mod:`examples.reporting`            — cutting lists and material totals over a snapshot
 * :mod:`examples.rules`                — validate the model against declarative rules
 * :mod:`examples.versioning`           — a git workflow over the model: commit, branch, restore
+* :mod:`examples.work`                 — WorkUnit: apply, run, rollback, undo=False, report diffs
 
 Three scripts are **not** in the ``MODULES`` tour because they need a live model
 and a real git repository, so they only run inside cadwork (not under the fake
@@ -75,6 +76,7 @@ MODULES: tuple[str, ...] = (
     "reporting",
     "rules",
     "versioning",
+    "work",
 )
 
 __all__ = ["MODULES"]

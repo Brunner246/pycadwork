@@ -42,6 +42,9 @@ the [project README](../README.md) for the overview and quick start.
   JSONL.
 - [Utilities](utilities.md) — `DisplayRefreshScope`, `batch_apply`, and the
   `auto_*` decorators.
+- [Work units](work.md) — `pycadwork.work.WorkUnit` for bulk live-model
+  attribute mutations (snapshot / apply / run / rollback / undo / report).
+  Not SQL `UnitOfWork`.
 
 ## Command line
 
