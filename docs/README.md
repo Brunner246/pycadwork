@@ -38,6 +38,8 @@ the [project README](../README.md) for the overview and quick start.
   grouping dimensions.
 - [Rules](rules.md) — validate the model against declarative, composable rules
   and get a pass/fail/severity report.
+- [Gherkin](gherkin.md) — compile a `.feature` file into `pycadwork.rules`
+  (`run_features`); does not replace the linter.
 - [Versioning](versioning.md) — a git workflow over the `.3d` / `.3dc` with diffable
   JSONL.
 - [Utilities](utilities.md) — `DisplayRefreshScope`, `batch_apply`, and the

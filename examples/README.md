@@ -27,6 +27,7 @@ calls them in order, with comments and `print(...)` of the interesting result.
 | [`persistence.py`](persistence.py) | `open_sqlite`, `Synchronizer` pull/push, `ModelReader`, `diff`, `UnitOfWork`, and raw SQL |
 | [`persistence_queries.py`](persistence_queries.py) | Read the model into SQL, then query it back: typed `Gateway` reads, a cross-table SQL JOIN report, and the `BuildingQuery` facade (building → storeys → elements) |
 | [`sql_builder.py`](sql_builder.py) | The table-as-data SQL builder (`Table` / `Column`, `create_table`, `Insert` / `Update` / `Delete` / `Select`), then using it to query a pulled model |
+| [`gherkin.py`](gherkin.py) | `run_features` over [`features/framing.feature`](features/framing.feature): seed a model, show a pass and a fail. Compiles to `pycadwork.rules`; does not replace it |
 
 ## Running inside cadwork vs. anywhere
 

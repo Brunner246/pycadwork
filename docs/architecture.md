@@ -15,6 +15,7 @@ flowchart TD
         work["work/<br/>WorkUnit · WorkReport"]
         persistence["persistence/<br/>Synchronizer · gateways · UnitOfWork"]
         reporting["reporting/<br/>cutting_list · material_totals · by_*"]
+        gherkin["gherkin/<br/>run_features · register_step"]
         versioning["versioning/<br/>ModelVersioning · SnapshotCodec · GitRepository"]
     end
 
@@ -24,7 +25,7 @@ flowchart TD
     cwapi3d["cwapi3d"]
     cadwork["cadwork 3D"]
     
-    app --> document & element & cover & connectivity & building & utility & work & persistence & reporting & versioning
+    app --> document & element & cover & connectivity & building & utility & work & persistence & reporting & gherkin & versioning
     document --> element
     element --> geometry
     cover --> element
@@ -33,6 +34,7 @@ flowchart TD
     work --> utility
     persistence --> document & element
     reporting --> persistence
+    gherkin --> reporting
     versioning --> persistence & document
     document & element & cover & connectivity & building & utility & work & persistence & versioning --> seam
     persistence --> sqlite
@@ -66,6 +68,7 @@ stable types crossing the seam are the aliases and value objects in
 | `pycadwork.persistence`     | Mirror the running model to a normalized SQL database and back — `Synchronizer` (`pull` / `push`), Table Data Gateways, a `UnitOfWork`, and frozen record DTOs.                                                                          |
 | `pycadwork.reporting`       | Bill of materials over a `ModelSnapshot` — `cutting_list`, `material_totals`, composable `by_*` grouping dimensions, and CSV writers. Pure functions; works on a live read or a pulled SQL store.                                        |
 | `pycadwork.rules`           | Validate a `ModelSnapshot` against declarative rules — `check`, composable built-in rule factories, `ElementRule` / `ModelRule`, severities, and a CSV writer. Pure functions reusing reporting's `SnapshotIndex`; works on a live read or a pulled SQL store. |
+| `pycadwork.gherkin`         | Driving adapter over `rules.check` — parse a stdlib Gherkin subset, compile `Then` steps into `Rule`s, return a `FeatureReport`. Snapshot is injected (`ModelReader`, SQL, or a literal); the module never imports cadwork. |
 | `pycadwork.versioning`      | A git workflow over the model — `ModelVersioning` (commit / branch / checkout / restore / push / pull) committing both a diffable per-table JSONL serialization (`SnapshotCodec`) and the binary `.3d` / `.3dc` (Git LFS), behind a `Repository` seam (`GitRepository`, GitPython lazy-loaded via the optional `git` extra). |
 
 The top-level namespace re-exports the full public surface, so you can write

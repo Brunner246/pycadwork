@@ -52,10 +52,13 @@ model rules accept `severity=`. Element-level (**E**) unless marked **M**:
 | `has_production_number()` | E | INFO | `production_number > 0` |
 | `assigned_to_storey()` | E | WARNING | the element has a storey assignment |
 | `material_in(allowed)` | E | ERROR | material is in the allowed set (empty passes) |
+| `material_is(expected)` | E | ERROR | `material_name` equals `expected` (empty fails) |
+| `ifc_type_is(expected)` | E | ERROR | `ifc_type` equals the canonical token (`"IfcBeam"`; empty fails) |
 | `naming_matches(pattern, field="name")` | E | WARNING | `name`/`group_name`/`subgroup` fully matches a regex |
 | `dimensions_within(length=…, width=…, height=…)` | E | ERROR | the given axes are within range (beams/plates) |
 | `volume_between(min, max)` | E | WARNING | volume in range |
 | `weight_between(min, max)` | E | INFO | weight in range |
+| `count_is(n)` | M | ERROR | count of selected elements equals `n` |
 | `material_is_known()` | M | ERROR | the material has a catalog master row |
 | `no_duplicate_part_numbers_with_different_dims()` | M | ERROR | one part number denotes one size |
 | `unique_assembly_numbers()` | M | WARNING | one assembly number is homogeneous (name/material) |
@@ -91,8 +94,10 @@ report = check(ModelReader().read(), [rule])
 ```
 
 Selectors (`for_types(...)`, `any_element()`, `with_attribute()`,
-`with_geometry()`) decide which elements a rule sees; the predicate receives the
-shared `SnapshotIndex` and the element's record.
+`with_geometry()`, `named_equals(name)`, `all_of(*selectors)`) decide which
+elements a rule sees; the predicate receives the shared `SnapshotIndex` and the
+element's record. `named_equals` matches `attribute.name` (a missing satellite
+skips the element); `all_of` AND-composes existing selectors.
 
 ## Severity and the CI gate
 

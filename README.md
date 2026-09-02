@@ -99,6 +99,7 @@ The full guide lives in [`docs/`](docs/):
 | [Persistence](docs/persistence.md) | Mirror the model to normalized SQL and back — `pull` / `push`, gateways, `UnitOfWork` |
 | [Reporting](docs/reporting.md) | `cutting_list`, `material_totals`, composable `by_*` dimensions                       |
 | [Rules](docs/rules.md) | `check`, composable model-validation rules, `ElementRule` / `ModelRule`, severities |
+| [Gherkin](docs/gherkin.md) | `run_features` — compile a `.feature` file into `pycadwork.rules`; does not replace the linter |
 | [Versioning](docs/versioning.md) | A git workflow over the `.3d/c` with diffable JSONL                                   |
 | [Utilities](docs/utilities.md) | `DisplayRefreshScope`, `batch_apply`, `auto_*` decorators                             |
 | [Work units](docs/work.md) | `pycadwork.work` — `WorkUnit` bulk live-model `apply` / `run`, rollback, Undo, `WorkReport` |
