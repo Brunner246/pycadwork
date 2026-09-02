@@ -2,7 +2,15 @@
 
 from __future__ import annotations
 
+import sqlite3
+
 from pycadwork.persistence import open_sqlite
+from pycadwork.persistence.gateways import (
+    AttributeGateway,
+    ElementGateway,
+    ProjectGateway,
+)
+from pycadwork.persistence.records import AttributeRecord, ElementRecord, ProjectRecord
 from pycadwork.persistence.schema import ELEMENT_MATERIAL, MATERIAL, TABLES
 
 
@@ -38,6 +46,64 @@ def test_schema_is_idempotent() -> None:
     connection.init_schema()
     connection.init_schema()
     assert set(TABLES) <= _table_names(connection)
+
+
+def test_attribute_table_has_ifc_type_column() -> None:
+    connection = open_sqlite(":memory:")
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(attribute)")}
+    assert "ifc_type" in columns
+
+
+def test_opening_pre_column_sqlite_adds_ifc_type_and_round_trips_empty(
+    tmp_path,
+) -> None:
+    path = tmp_path / "old.db"
+    raw = sqlite3.connect(path)
+    raw.executescript("""
+        CREATE TABLE attribute (
+            project_guid TEXT,
+            element_id INTEGER,
+            name TEXT DEFAULT '',
+            group_name TEXT DEFAULT '',
+            subgroup TEXT DEFAULT '',
+            comment TEXT DEFAULT '',
+            material_name TEXT DEFAULT '',
+            sku TEXT DEFAULT '',
+            production_number INTEGER DEFAULT 0,
+            part_number TEXT DEFAULT '',
+            assembly_number TEXT DEFAULT '',
+            PRIMARY KEY (project_guid, element_id)
+        );
+        INSERT INTO attribute (project_guid, element_id, name)
+        VALUES ('g', 1, 'Stud');
+        """)
+    raw.commit()
+    raw.close()
+
+    connection = open_sqlite(path)
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(attribute)")}
+    assert "ifc_type" in columns
+    records = AttributeGateway(connection).select_for_project("g")
+    assert len(records) == 1
+    assert records[0].name == "Stud"
+    assert records[0].ifc_type == ""
+
+    ProjectGateway(connection).upsert(ProjectRecord("g"))
+    ElementGateway(connection).upsert(ElementRecord("g", 1, "beam"))
+    AttributeGateway(connection).upsert(
+        AttributeRecord("g", 1, name="Stud", ifc_type="")
+    )
+    again = AttributeGateway(connection).select_for_project("g")
+    assert again[0].ifc_type == ""
+
+
+def test_attribute_gateway_roundtrips_ifc_type() -> None:
+    connection = open_sqlite(":memory:")
+    ProjectGateway(connection).upsert(ProjectRecord("g"))
+    ElementGateway(connection).upsert(ElementRecord("g", 1, "beam"))
+    record = AttributeRecord("g", 1, name="Stud", ifc_type="IfcBeam")
+    AttributeGateway(connection).upsert(record)
+    assert AttributeGateway(connection).select_for_project("g") == [record]
 
 
 def test_schema_survives_reopening_a_file(tmp_path) -> None:

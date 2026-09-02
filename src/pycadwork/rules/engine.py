@@ -123,6 +123,24 @@ def with_geometry() -> Selector:
     return lambda index, element: index.geometry(element.id) is not None
 
 
+def all_of(*selectors: Selector) -> Selector:
+    """AND-compose ``selectors``: an element must satisfy every one."""
+    return lambda index, element: all(select(index, element) for select in selectors)
+
+
+def named_equals(name: str) -> Selector:
+    """Select elements whose attribute.name equals ``name``.
+
+    A missing attribute satellite fails the select (the element is skipped).
+    """
+
+    def select(index: SnapshotIndex, element: ElementRecord) -> bool:
+        attribute = index.attribute(element.id)
+        return attribute is not None and attribute.name == name
+
+    return select
+
+
 # ---- the engine ----
 
 

@@ -284,6 +284,7 @@ class ModelReader:
             production_number=a.production_number,
             part_number=a.part_number,
             assembly_number=a.assembly_number,
+            ifc_type=a.ifc_type,
         )
 
     @staticmethod
@@ -675,6 +676,7 @@ class ModelWriter:
             a.set_production_number(ids, attr.production_number)
             a.set_part_number(ids, attr.part_number)
             a.set_assembly_number(ids, attr.assembly_number)
+            cadwork.bim.set_ifc_type(ids, attr.ifc_type)
         for ua in user_attrs or ():
             cadwork.attributes.set_user_attribute([model_id], ua.attr_index, ua.value)
 

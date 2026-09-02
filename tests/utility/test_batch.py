@@ -68,6 +68,12 @@ def test_unknown_attribute_raises_typeerror(fake_cadwork):
         batch_apply([beam], weight=12.0)
 
 
+def test_ifc_type_is_rejected_by_batch_apply(fake_cadwork):
+    beam = _make_beam()
+    with pytest.raises(TypeError, match="ifc_type"):
+        batch_apply([beam], ifc_type="IfcBeam")
+
+
 def test_works_with_generator_input(fake_cadwork):
     beams = [_make_beam() for _ in range(3)]
     attrs = fake_cadwork.attributes

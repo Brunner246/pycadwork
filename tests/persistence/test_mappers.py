@@ -56,12 +56,14 @@ def test_read_captures_attributes_and_geometry() -> None:
     beam = _beam()
     beam.attrs.name = "Stud"
     beam.attrs.material_name = "Pine"
+    beam.attrs.ifc_type = "IfcBeam"
 
     snapshot = ModelReader().read()
 
     attr = snapshot.attributes_by_element()[beam.id]
     assert attr.name == "Stud"
     assert attr.material_name == "Pine"
+    assert attr.ifc_type == "IfcBeam"
 
     geom = snapshot.geometry_by_element()[beam.id]
     assert geom.width == 80.0
@@ -215,6 +217,20 @@ def test_writer_creates_missing_elements_from_geometry() -> None:
     rebuilt = Document().elements()
     assert len(rebuilt) == 1
     assert rebuilt[0].geometry.width == 80.0
+
+
+def test_writer_pushes_ifc_type_through_bim() -> None:
+    beam = _beam()
+    target = ModelReader().read()
+    stamped = replace(
+        target,
+        attributes=tuple(replace(a, ifc_type="IfcColumn") for a in target.attributes),
+    )
+
+    result = ModelWriter().apply(diff(ModelReader().read(), stamped))
+
+    assert result.updated == 1
+    assert Document().get(beam.id).attrs.ifc_type == "IfcColumn"
 
 
 def test_writer_updates_existing_element_dims_without_moving_it() -> None:

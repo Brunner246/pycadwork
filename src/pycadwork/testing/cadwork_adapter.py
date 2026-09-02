@@ -195,6 +195,7 @@ class _FakeElement:
     color: int = 0
     building: str = ""
     storey: str = ""
+    ifc_type: str = ""
     container_parent: ElementId = 0
     user_attributes: dict[int, str] = field(default_factory=dict)
     p1: PointTuple = (0.0, 0.0, 0.0)
@@ -1337,6 +1338,22 @@ class FakeBimAdapter:
 
     def set_storey_height(self, building: str, storey: str, height: float) -> None:
         self._state.storeys.setdefault(building, {})[storey] = height
+
+    # ---- IFC 2x3 element type ----
+
+    def get_ifc_type(self, eid: ElementId) -> str:
+        return self._state.elements[eid].ifc_type
+
+    def set_ifc_type(self, eids: list[ElementId], ifc_type: str) -> None:
+        from pycadwork.cadwork_adapter._bim import (
+            IFC_2X3_ELEMENT_TYPES,
+            _unknown_ifc_type,
+        )
+
+        if ifc_type and ifc_type not in IFC_2X3_ELEMENT_TYPES:
+            raise _unknown_ifc_type(ifc_type)
+        for eid in eids:
+            self._state.elements[eid].ifc_type = ifc_type
 
 
 class FakeFileAdapter:

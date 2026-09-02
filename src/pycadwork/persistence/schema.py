@@ -103,6 +103,7 @@ ATTRIBUTE = Table(
         Column("production_number", _INTEGER, default=0),
         _text("part_number"),
         _text("assembly_number"),
+        _text("ifc_type"),
     ),
     primary_key=("project_guid", "element_id"),
     foreign_keys=(

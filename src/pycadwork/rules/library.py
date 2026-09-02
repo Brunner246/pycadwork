@@ -33,6 +33,7 @@ from pycadwork.rules.engine import (
     ModelFinding,
     ModelRule,
     Selector,
+    any_element,
     for_types,
 )
 from pycadwork.rules.severity import Severity
@@ -119,6 +120,62 @@ def assigned_to_storey(
     return ElementRule(
         id="assigned-to-storey",
         description="element must be assigned to a storey",
+        severity=severity,
+        selects=selects or _default_parts(),
+        check=check,
+    )
+
+
+def ifc_type_is(
+    expected: str,
+    *,
+    selects: Selector | None = None,
+    severity: Severity = Severity.ERROR,
+) -> ElementRule:
+    """Fail any element whose IFC 2x3 type is not ``expected``.
+
+    Empty IFC and a missing attribute satellite both fail (``"no ifc type"``).
+    Comparison is exact and case-sensitive against the canonical token
+    (``"IfcBeam"``).
+    """
+
+    def check(index: SnapshotIndex, element: ElementRecord) -> str | None:
+        attribute = index.attribute(element.id)
+        if attribute is None or not attribute.ifc_type:
+            return "no ifc type"
+        if attribute.ifc_type != expected:
+            return f"ifc type {attribute.ifc_type!r} is not {expected!r}"
+        return None
+
+    return ElementRule(
+        id="ifc-type-is",
+        description="element IFC type must match",
+        severity=severity,
+        selects=selects or _default_parts(),
+        check=check,
+    )
+
+
+def material_is(
+    expected: str,
+    *,
+    selects: Selector | None = None,
+    severity: Severity = Severity.ERROR,
+) -> ElementRule:
+    """Fail any element whose material is not ``expected`` (empty material fails)."""
+
+    def check(index: SnapshotIndex, element: ElementRecord) -> str | None:
+        attribute = index.attribute(element.id)
+        material = attribute.material_name if attribute else ""
+        if material == expected:
+            return None
+        if not material:
+            return "no material assigned"
+        return f"material {material!r} is not {expected!r}"
+
+    return ElementRule(
+        id="material-is",
+        description="element material must match",
         severity=severity,
         selects=selects or _default_parts(),
         check=check,
@@ -273,6 +330,31 @@ def weight_between(
 
 
 # ---- model rules ----
+
+
+def count_is(
+    n: int,
+    *,
+    selects: Selector | None = None,
+    severity: Severity = Severity.ERROR,
+) -> ModelRule:
+    """Fail when the number of selected elements is not ``n``."""
+    selector = selects or any_element()
+
+    def evaluate(
+        index: SnapshotIndex, snapshot: ModelSnapshot
+    ) -> Iterable[ModelFinding]:
+        actual = sum(1 for element in snapshot.elements if selector(index, element))
+        if actual == n:
+            return ()
+        return (ModelFinding(None, f"count={actual} expected {n}"),)
+
+    return ModelRule(
+        id="count-is",
+        description="selected element count must equal the expected count",
+        severity=severity,
+        evaluate=evaluate,
+    )
 
 
 def material_is_known(*, severity: Severity = Severity.ERROR) -> ModelRule:
