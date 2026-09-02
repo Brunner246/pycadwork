@@ -87,9 +87,25 @@ RULE_FACTORY_EXPORTS = (
     "named_equals",
 )
 
+GHERKIN_EXPORTS = (
+    "FeatureReport",
+    "GherkinError",
+    "ScenarioResult",
+    "StepFailure",
+    "register_step",
+    "reset_steps",
+    "run_features",
+)
+
 
 def test_new_rule_factories_are_re_exported_and_listed():
     for name in RULE_FACTORY_EXPORTS:
+        assert hasattr(pycadwork, name), f"pycadwork.{name} is not re-exported"
+        assert name in pycadwork.__all__, f"{name} missing from pycadwork.__all__"
+
+
+def test_gherkin_surface_is_re_exported_and_listed():
+    for name in GHERKIN_EXPORTS:
         assert hasattr(pycadwork, name), f"pycadwork.{name} is not re-exported"
         assert name in pycadwork.__all__, f"{name} missing from pycadwork.__all__"
 
