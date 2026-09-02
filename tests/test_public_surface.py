@@ -79,6 +79,21 @@ def test_work_surface_is_re_exported_and_listed():
         assert name in pycadwork.__all__, f"{name} missing from pycadwork.__all__"
 
 
+RULE_FACTORY_EXPORTS = (
+    "all_of",
+    "count_is",
+    "ifc_type_is",
+    "material_is",
+    "named_equals",
+)
+
+
+def test_new_rule_factories_are_re_exported_and_listed():
+    for name in RULE_FACTORY_EXPORTS:
+        assert hasattr(pycadwork, name), f"pycadwork.{name} is not re-exported"
+        assert name in pycadwork.__all__, f"{name} missing from pycadwork.__all__"
+
+
 def test_connection_graph_has_no_type_specific_accessors():
     # ``nodes`` is excluded: it is the graph's universal accessor returning
     # ``list[Element]`` (any type), not a per-``Node`` discriminator.

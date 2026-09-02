@@ -62,6 +62,7 @@ def _attribute_fields(record: AttributeRecord | None) -> tuple[Any, ...]:
         record.production_number,
         record.part_number,
         record.assembly_number,
+        record.ifc_type,
     )
 
 

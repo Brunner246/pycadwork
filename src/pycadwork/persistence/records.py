@@ -91,6 +91,7 @@ class AttributeRecord:
     production_number: int = 0
     part_number: str = ""
     assembly_number: str = ""
+    ifc_type: str = ""
 
 
 @dataclass(frozen=True, slots=True)

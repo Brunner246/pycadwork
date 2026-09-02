@@ -7,6 +7,7 @@ exercised directly against hand-built :class:`ModelSnapshot` objects.
 from __future__ import annotations
 
 from pycadwork.persistence import (
+    AttributeRecord,
     CadworkGuid,
     ContainerId,
     ContainerMemberRecord,
@@ -65,6 +66,25 @@ def test_unchanged_elements_are_left_untouched() -> None:
     assert plan.unchanged == (1, 2)
     assert plan.stale == ()
     assert plan.missing == ()
+
+
+def test_ifc_type_only_edit_changes_fingerprint() -> None:
+    element, geometry = _beam(1, "g1")
+    empty = ModelSnapshot(
+        project=ProjectRecord(_GUID),
+        elements=(element,),
+        geometries=(geometry,),
+        attributes=(AttributeRecord(_GUID, ElementId(1), name="Stud"),),
+    )
+    stamped = ModelSnapshot(
+        project=ProjectRecord(_GUID),
+        elements=(element,),
+        geometries=(geometry,),
+        attributes=(
+            AttributeRecord(_GUID, ElementId(1), name="Stud", ifc_type="IfcBeam"),
+        ),
+    )
+    assert fingerprint_snapshot(empty)[1] != fingerprint_snapshot(stamped)[1]
 
 
 def test_changed_element_is_stale_and_its_new_content_is_missing() -> None:

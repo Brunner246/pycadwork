@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pycadwork.persistence.records import (
+    AttributeRecord,
     ElementRecord,
     GeometryRecord,
     ModelSnapshot,
@@ -13,9 +14,11 @@ from pycadwork.rules import (
     ModelFinding,
     ModelRule,
     Severity,
+    all_of,
     any_element,
     check,
     for_types,
+    named_equals,
     with_geometry,
 )
 
@@ -81,6 +84,46 @@ def test_for_types_selector_scopes_the_rule() -> None:
     report = check(snap, [rule])
     assert [v.element_id for v in report.violations] == [1]
     assert report.checked == 1  # only the beam was visited by an applicable rule
+
+
+def test_all_of_requires_every_selector() -> None:
+    snap = _snapshot(
+        elements=(
+            ElementRecord("g", 1, "beam"),
+            ElementRecord("g", 2, "beam"),
+            ElementRecord("g", 3, "plate"),
+        ),
+        attributes=(
+            AttributeRecord("g", 1, name="Stud"),
+            AttributeRecord("g", 2, name="Joist"),
+            AttributeRecord("g", 3, name="Stud"),
+        ),
+    )
+    rule = ElementRule(
+        id="named-beams",
+        description="d",
+        severity=Severity.ERROR,
+        selects=all_of(for_types("beam"), named_equals("Stud")),
+        check=lambda index, element: "x",
+    )
+    report = check(snap, [rule])
+    assert [v.element_id for v in report.violations] == [1]
+
+
+def test_named_equals_skips_missing_attribute() -> None:
+    snap = _snapshot(
+        elements=(ElementRecord("g", 1, "beam"), ElementRecord("g", 2, "beam")),
+        attributes=(AttributeRecord("g", 1, name="Stud"),),
+    )
+    rule = ElementRule(
+        id="named",
+        description="d",
+        severity=Severity.ERROR,
+        selects=named_equals("Stud"),
+        check=lambda index, element: "x",
+    )
+    report = check(snap, [rule])
+    assert [v.element_id for v in report.violations] == [1]
 
 
 def test_with_geometry_selector_skips_satellite_less_elements() -> None:

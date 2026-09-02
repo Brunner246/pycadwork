@@ -4,6 +4,8 @@ assembly_number, user_attribute) against the fake backend, via ``beam.attrs``.
 
 from __future__ import annotations
 
+import pytest
+
 from pycadwork import AxisPoints, Beam, Point3D, RectSection
 
 
@@ -38,6 +40,25 @@ def test_assembly_number_round_trip():
     beam = _make_beam()
     beam.attrs.assembly_number = "A-42"
     assert beam.attrs.assembly_number == "A-42"
+
+
+def test_ifc_type_defaults_empty_and_round_trips():
+    beam = _make_beam()
+    assert beam.attrs.ifc_type == ""
+    beam.attrs.ifc_type = "IfcBeam"
+    assert beam.attrs.ifc_type == "IfcBeam"
+    beam.attrs.ifc_type = ""
+    assert beam.attrs.ifc_type == ""
+
+
+def test_unknown_ifc_type_raises_valueerror_listing_allow_list():
+    beam = _make_beam()
+    with pytest.raises(ValueError, match="IfcBeam") as raised:
+        beam.attrs.ifc_type = "IfcBogus"
+    message = str(raised.value)
+    assert "IfcWall" in message
+    assert "IfcBuildingElementProxy" in message
+    assert beam.attrs.ifc_type == ""
 
 
 def test_user_attribute_round_trip_per_index():

@@ -48,7 +48,7 @@ _3D_GLOBS: tuple[str, ...] = (
 #: exe base (``…\exe_2026``). Missing entries are skipped.
 _DLL_RELATIVE: tuple[Path, ...] = (
     Path("pclib.x64"),
-    Path("pclib.x64") / "TCL" / "BIN",
+    Path("pclib.x64") / "tcl" / "lib",
     Path("lxsdk.x64") / "bin",
     Path("lxsdk.x64") / "bin" / "dlls",
     Path("lxsdk.x64") / "bin" / "plugins" / "standard",

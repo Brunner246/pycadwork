@@ -98,6 +98,17 @@ class Attributes:
     def color(self, color_id: int) -> None:
         cadwork.visualization.set_color([self._id], color_id)
 
+    # IFC 2x3 type is a bim_controller concern, not an attribute, so it
+    # delegates to the cadwork.bim seam (same split as color → visualization).
+
+    @property
+    def ifc_type(self) -> str:
+        return cadwork.bim.get_ifc_type(self._id)
+
+    @ifc_type.setter
+    def ifc_type(self, ifc_type: str) -> None:
+        cadwork.bim.set_ifc_type([self._id], ifc_type)
+
     @property
     def sku(self) -> str:
         return cadwork.attributes.get_sku(self._id)

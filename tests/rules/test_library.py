@@ -17,11 +17,15 @@ from pycadwork.rules import (
     any_element,
     assigned_to_storey,
     check,
+    count_is,
     dimensions_within,
     every_member_has_container_parent,
+    for_types,
     has_material,
     has_production_number,
+    ifc_type_is,
     material_in,
+    material_is,
     material_is_known,
     named,
     naming_matches,
@@ -80,6 +84,59 @@ def test_assigned_to_storey() -> None:
         storey_assignments=(StoreyAssignmentRecord("g", 1, "B", "GF"),),
     )
     assert failed_ids(check(snap, [assigned_to_storey()])) == [2]
+
+
+def test_ifc_type_is_fails_empty_and_mismatch() -> None:
+    snap = _snapshot(
+        elements=(
+            ElementRecord("g", 1, "beam"),
+            ElementRecord("g", 2, "beam"),
+            ElementRecord("g", 3, "beam"),
+            ElementRecord("g", 4, "beam"),  # missing attribute satellite
+        ),
+        attributes=(
+            AttributeRecord("g", 1, ifc_type="IfcBeam"),
+            AttributeRecord("g", 2, ifc_type="IfcWall"),
+            AttributeRecord("g", 3, ifc_type=""),
+        ),
+    )
+    report = check(snap, [ifc_type_is("IfcBeam")])
+    assert failed_ids(report) == [2, 3, 4]
+    assert all(
+        "no ifc type" in v.message or "IfcWall" in v.message for v in report.violations
+    )
+
+
+def test_material_is_fails_empty_unlike_material_in() -> None:
+    snap = _snapshot(
+        elements=(
+            ElementRecord("g", 1, "beam"),
+            ElementRecord("g", 2, "beam"),
+            ElementRecord("g", 3, "beam"),
+        ),
+        attributes=(
+            AttributeRecord("g", 1, material_name="Pine"),
+            AttributeRecord("g", 2, material_name="Concrete"),
+            AttributeRecord("g", 3, material_name=""),
+        ),
+    )
+    assert failed_ids(check(snap, [material_is("Pine")])) == [2, 3]
+    assert failed_ids(check(snap, [material_in({"Pine"})])) == [2]
+
+
+def test_count_is_passes_on_match_and_fails_model_wide() -> None:
+    snap = _snapshot(
+        elements=(
+            ElementRecord("g", 1, "beam"),
+            ElementRecord("g", 2, "beam"),
+            ElementRecord("g", 3, "plate"),
+        ),
+    )
+    assert check(snap, [count_is(2, selects=for_types("beam"))]).ok
+    report = check(snap, [count_is(1, selects=for_types("beam"))])
+    assert report.ok is False
+    assert report.violations[0].element_id == -1
+    assert "count=2 expected 1" in report.violations[0].message
 
 
 def test_material_in_allows_empty_and_flags_disallowed() -> None:

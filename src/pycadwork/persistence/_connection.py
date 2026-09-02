@@ -62,6 +62,11 @@ class SqliteConnection:  # (GatewayConnection)
     def init_schema(self) -> None:
         """Apply :data:`SCHEMA_SQL`. Idempotent — safe to call on every open."""
         self._conn.executescript(SCHEMA_SQL)
+        columns = {row[1] for row in self._conn.execute("PRAGMA table_info(attribute)")}
+        if columns and "ifc_type" not in columns:
+            self._conn.execute(
+                "ALTER TABLE attribute ADD COLUMN ifc_type TEXT DEFAULT ''"
+            )
 
     def execute(self, sql: str, params: Sequence[Any] = ()) -> list[tuple[Any, ...]]:
         """Run ``sql`` with ``params`` and return all result rows (``[]`` for writes)."""
