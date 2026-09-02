@@ -7,10 +7,13 @@ surface small:
 
 - **`element.attrs`** — an `Attributes` view: `name`, `group`, `subgroup`,
   `comment`, `material_name`, `sku`, `production_number`, `part_number`,
-  `cadwork_guid`, `additional_data`, `assembly_number`, and indexed
+  `cadwork_guid`, `additional_data`, `assembly_number`, `ifc_type`, and indexed
   `user_attribute(i)`. Each is a read/write property (`attrs.group = "frame"`),
   except read-only `cadwork_guid` and the indexed `user_attribute(i)` /
-  `set_user_attribute(i, v)` pair, which stay methods.
+  `set_user_attribute(i, v)` pair, which stay methods. `ifc_type` is the IFC
+  2x3 element type as a canonical string (`"IfcBeam"`); it delegates to
+  `cadwork.bim`, the same split as `color` → visualization. Unknown set tokens
+  raise `ValueError`.
 - **`element.geometry`** — a `Geometry` view (narrowed per subclass) exposing
   `volume`, `weight`, `center_of_gravity`, `aabb`, `brep`, and — for linear and
   oriented elements — `start_point` / `end_point`, `frame`, `length` / `width` /
@@ -19,6 +22,7 @@ surface small:
 ```python
 beam.attrs.name  # -> str
 beam.attrs.material_name = "Pine"  # write-back via the matching setter property
+beam.attrs.ifc_type = "IfcBeam"    # BIM seam; canonical "Ifc" + type token
 beam.geometry.center_of_gravity  # -> Point3D
 beam.geometry.frame  # -> Frame3D
 beam.geometry.obb  # -> OrientedBoundingBox

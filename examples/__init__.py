@@ -28,6 +28,7 @@ Modules:
 * :mod:`examples.sql_builder`          — the table-as-data SQL builder; query a pulled model
 * :mod:`examples.reporting`            — cutting lists and material totals over a snapshot
 * :mod:`examples.rules`                — validate the model against declarative rules
+* :mod:`examples.gherkin`              — compile a .feature file through rules.check
 * :mod:`examples.versioning`           — a git workflow over the model: commit, branch, restore
 * :mod:`examples.work`                 — WorkUnit: apply, run, rollback, undo=False, report diffs
 
@@ -75,6 +76,7 @@ MODULES: tuple[str, ...] = (
     "sql_builder",
     "reporting",
     "rules",
+    "gherkin",
     "versioning",
     "work",
 )
