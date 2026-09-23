@@ -13,6 +13,7 @@ command line (``--dry-run``) or launches cadwork through an injected
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from collections.abc import Sequence
 
@@ -29,15 +30,24 @@ from pycadwork.terminal.launcher import (
 from pycadwork.terminal.registry import (
     RegistryWriteError,
     apply_env_values,
-    image_pids,
+    pids_running,
     read_env_value,
     restore_values,
 )
 from pycadwork.terminal.translation import build_command
 from pycadwork.terminal.values import UPDATE_CHOICES, USER_CHOICES
 
-#: 3d image name — 3d reads CADWORK_USP from the registry on demand.
-_3D_IMAGE = "3d.exe"
+#: HKCU value 3d reads the userprofile from — pinned by ``open --usp``.
+_USP_VALUE = "CADWORK_USP"
+
+
+def _same_path(a: str | None, b: str | None) -> bool:
+    """Whether two folder paths name the same place (``None`` never matches)."""
+    if a is None or b is None:
+        return False
+    return os.path.normcase(os.path.normpath(a)) == os.path.normcase(
+        os.path.normpath(b)
+    )
 
 
 def _common_options() -> argparse.ArgumentParser:
@@ -131,8 +141,8 @@ def _add_open(subparsers, common: argparse.ArgumentParser) -> None:
         metavar="DIR",
         help=(
             "userprofile root folder (/USP), not the 3d subfolder; forwarded "
-            "as a Windows path (D:\\…). Errors if 3d.exe is already running "
-            "(as does any open)"
+            "as a Windows path (D:\\…). Errors if the same cadwork version is "
+            "already running with a different userprofile"
         ),
     )
     p.add_argument("--catdir", metavar="DIR", help="catalog folder (/CATDIR)")
@@ -311,10 +321,18 @@ def main(
             command_line=command_line,
         )
 
-    if live and opening and image_pids(_3D_IMAGE):
+    wanted_usp = registry_overlay.get(_USP_VALUE)
+    if (
+        live
+        and opening
+        and wanted_usp is not None
+        and not _same_path(wanted_usp, read_env_value(_USP_VALUE))
+        and pids_running(executable)
+    ):
         print(
-            "error: 3d.exe is already running — close cadwork before launching "
-            "(a running 3d keeps its loaded version and userprofile)",
+            f"error: 3d.exe from {exe_base_for(executable)} is already running — "
+            "a running 3d keeps the userprofile it loaded; close that instance to "
+            "switch --usp (other files and other versions can still be opened)",
             file=sys.stderr,
         )
         return 2

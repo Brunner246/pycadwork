@@ -135,6 +135,64 @@ def image_pids(image_name: str) -> frozenset[int]:
     return frozenset(pids)
 
 
+#: ``OpenProcess`` access right that suffices for ``QueryFullProcessImageNameW``.
+_PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+
+
+def image_path(pid: int) -> Path | None:
+    """Full executable path of ``pid`` (``None`` off Windows or on any failure)."""
+    if os.name != "nt":
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+        kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        kernel32.QueryFullProcessImageNameW.argtypes = (
+            wintypes.HANDLE,
+            wintypes.DWORD,
+            wintypes.LPWSTR,
+            ctypes.POINTER(wintypes.DWORD),
+        )
+        kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+        handle = kernel32.OpenProcess(_PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+        if not handle:
+            return None
+        try:
+            size = wintypes.DWORD(32768)
+            buffer = ctypes.create_unicode_buffer(size.value)
+            if not kernel32.QueryFullProcessImageNameW(
+                handle, 0, buffer, ctypes.byref(size)
+            ):
+                return None
+        finally:
+            kernel32.CloseHandle(handle)
+    except OSError, AttributeError:
+        return None
+    return Path(buffer.value) if buffer.value else None
+
+
+def _path_key(path: str | os.PathLike[str]) -> str:
+    return os.path.normcase(os.path.normpath(os.fspath(path)))
+
+
+def pids_running(executable: Path) -> frozenset[int]:
+    """PIDs of running processes whose image is exactly ``executable``.
+
+    A PID whose path cannot be read is included — conservatively, it *might* be
+    this executable (e.g. an elevated process we cannot query).
+    """
+    wanted = _path_key(executable)
+    matches: set[int] = set()
+    for pid in image_pids(Path(executable).name):
+        path = image_path(pid)
+        if path is None or _path_key(path) == wanted:
+            matches.add(pid)
+    return frozenset(matches)
+
+
 def restore_values(previous: Mapping[str, str | None]) -> None:
     """Write ``previous`` back; ``None`` values are deleted."""
     for name, old in previous.items():

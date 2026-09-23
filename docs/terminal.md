@@ -220,7 +220,7 @@ maps the rest:
 | `--plugin NAME` | `/PLUGIN` | Plugin folder name in `API.x64` |
 | `--run-program PATH` | `/RUNPROGRAM` | Full path to a `.py` or `.dll` anywhere (not only `API.x64`) |
 | `--no-gui` | `/NO-GUI` | Headless; requires `--plugin` or `--run-program` |
-| `--usp DIR` | `/USP` | Userprofile **root** (not the `3d` subfolder). Forward slashes are accepted; cadwork is sent `D:\…`. 3d reads `CADWORK_USP` from **HKCU**, not from `/USP` or the process environment. The wrapper pins `CADWORK_USP` for the 3d session and restores it when 3d exits. Errors if `3d.exe` is already running. |
+| `--usp DIR` | `/USP` | Userprofile **root** (not the `3d` subfolder). Forward slashes are accepted; cadwork is sent `D:\…`. 3d reads `CADWORK_USP` from **HKCU**, not from `/USP` or the process environment. The wrapper pins `CADWORK_USP` for the 3d session and restores it when 3d exits. Errors only if a `3d.exe` of the **same version** (same `exe_YYYY` tree) is already running and the requested profile differs from the current `CADWORK_USP` — a running 3d keeps the profile it loaded. Other versions are independent, and `open` without `--usp` always launches. |
 | `--catdir DIR` | `/CATDIR` | Catalog folder (`CADWORK_CAT` on the launched process). Forward slashes are normalized the same way as `--usp`. |
 | `--workdir DIR` | `/WORKDIR` | Projects folder. |
 
@@ -236,8 +236,8 @@ cadwork open house.3d --run-program C:\my_plugins\export.py --no-gui
 cadwork open house.3d --plugin MyExport --no-gui
 # runs: …\3d.exe "house.3d" /Console /AlwaysIgnoreMultiOpenProtectDlg /PLUGIN=MyExport /NO-GUI
 
-# different userprofile than the registry default (close 3d first — the command
-# errors if 3d.exe is already running)
+# different userprofile than the registry default (errors if exe_2026's 3d.exe is
+# already running with another profile; an exe_2027 instance does not block)
 cadwork open "C:\Users\MichaelBrunner\Downloads\test_elements_walls.3d" `
     --exe D:\cadwork.dir\exe_2026 --usp D:/cadwork/userprofil_2026_charts
 # runs: "D:\cadwork.dir\exe_2026\3d.x64\3d.exe" "C:\Users\...\test_elements_walls.3d" /Console /AlwaysIgnoreMultiOpenProtectDlg /USP="D:\cadwork\userprofil_2026_charts"
@@ -251,6 +251,11 @@ like `1-2;5;7`, and `--laser PDF` prints to the PDF driver.
 ## Shell quoting
 
 Quote any value that contains a space, and — **in PowerShell** — any value with a
+`CADWORK_USP` is a single HKCU value shared by all versions. Launching another
+version with `--usp` while one is running rewrites it for the new session only —
+the running instance already loaded its profile. If `--usp` sessions overlap, each
+restores the value it found when that session's 3d exits, so the last one to exit decides what stays.
+
 `;` (PowerShell treats `;` as a statement separator):
 
 ```powershell

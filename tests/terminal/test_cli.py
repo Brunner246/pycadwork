@@ -251,7 +251,7 @@ def test_open_usp_live_writes_registry_before_launch_and_restores_after(
     monkeypatch.setattr(
         "pycadwork.terminal.cli.SubprocessLauncher", lambda: RecordingLauncher()
     )
-    monkeypatch.setattr("pycadwork.terminal.cli.image_pids", lambda name: frozenset())
+    monkeypatch.setattr("pycadwork.terminal.cli.pids_running", lambda exe: frozenset())
     monkeypatch.setattr("pycadwork.terminal.cli.read_env_value", lambda name: "OLD")
 
     def _apply(values):
@@ -270,11 +270,16 @@ def test_open_usp_live_writes_registry_before_launch_and_restores_after(
     assert restored == [{"CADWORK_USP": "OLD"}]
 
 
-def test_open_errors_if_3d_already_running(
+def _live_open(
     monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
+    *,
+    running: frozenset[int],
+    current_usp: str | None,
+) -> tuple[list[object], list[object], list[object]]:
+    """Stub a live ``open``; returns (launched, applied, restored) recorders."""
     launched: list[object] = []
+    applied: list[object] = []
+    restored: list[object] = []
 
     class RecordingLauncher:
         def launch(self, *args, **kwargs) -> int:
@@ -285,19 +290,71 @@ def test_open_errors_if_3d_already_running(
     monkeypatch.setattr(
         "pycadwork.terminal.cli.SubprocessLauncher", lambda: RecordingLauncher()
     )
+    monkeypatch.setattr("pycadwork.terminal.cli.pids_running", lambda exe: running)
     monkeypatch.setattr(
-        "pycadwork.terminal.cli.image_pids", lambda name: frozenset({99})
+        "pycadwork.terminal.cli.read_env_value", lambda name: current_usp
     )
-    applied: list[object] = []
     monkeypatch.setattr(
         "pycadwork.terminal.cli.apply_env_values", lambda values: applied.append(values)
     )
+    monkeypatch.setattr(
+        "pycadwork.terminal.cli.restore_values", lambda prev: restored.append(prev)
+    )
+    return launched, applied, restored
 
-    code = main(["open", "house.3d"])
-    assert code == 2
+
+def test_open_launches_while_same_version_is_running(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    launched, applied, _ = _live_open(
+        monkeypatch, running=frozenset({99}), current_usp="OLD"
+    )
+    assert main(["open", "house.3d"]) == 0
+    assert launched == [1]
+    assert applied == []
+
+
+def test_open_usp_errors_if_same_version_runs_with_other_profile(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    usp_dir = tmp_path / "usp"
+    usp_dir.mkdir()
+    launched, applied, _ = _live_open(
+        monkeypatch, running=frozenset({99}), current_usp=r"D:\other_profile"
+    )
+    assert main(["open", "house.3d", "--usp", str(usp_dir)]) == 2
     assert launched == []
     assert applied == []
-    assert "already running" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "already running" in err
+
+
+def test_open_usp_launches_when_only_another_version_runs(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    usp_dir = tmp_path / "usp"
+    usp_dir.mkdir()
+    # pids_running filters by executable path: an exe_2027 3d is not a match.
+    launched, applied, restored = _live_open(
+        monkeypatch, running=frozenset(), current_usp=r"D:\other_profile"
+    )
+    assert main(["open", "house.3d", "--usp", str(usp_dir)]) == 0
+    assert launched == [1]
+    assert len(applied) == 1
+    assert restored == [{"CADWORK_USP": r"D:\other_profile"}]
+
+
+def test_open_usp_launches_if_same_version_runs_with_same_profile(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    usp_dir = tmp_path / "usp"
+    usp_dir.mkdir()
+    usp = os.path.normpath(str(usp_dir.resolve()))
+    launched, _, _ = _live_open(monkeypatch, running=frozenset({99}), current_usp=usp)
+    assert main(["open", "house.3d", "--usp", str(usp_dir)]) == 0
+    assert launched == [1]
 
 
 def test_open_usp_errors_if_registry_write_fails(
@@ -321,7 +378,7 @@ def test_open_usp_errors_if_registry_write_fails(
     monkeypatch.setattr(
         "pycadwork.terminal.cli.SubprocessLauncher", lambda: RecordingLauncher()
     )
-    monkeypatch.setattr("pycadwork.terminal.cli.image_pids", lambda name: frozenset())
+    monkeypatch.setattr("pycadwork.terminal.cli.pids_running", lambda exe: frozenset())
     monkeypatch.setattr("pycadwork.terminal.cli.read_env_value", lambda name: None)
     monkeypatch.setattr(
         "pycadwork.terminal.cli.restore_values",

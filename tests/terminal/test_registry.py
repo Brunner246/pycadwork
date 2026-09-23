@@ -104,3 +104,16 @@ def test_image_pids_parses_tasklist_csv(monkeypatch: pytest.MonkeyPatch) -> None
 
     monkeypatch.setattr(registry.subprocess, "check_output", _tasklist)
     assert registry.image_pids("3d.exe") == frozenset({42, 99})
+
+
+def test_pids_running_filters_by_executable_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    exe_2026 = Path(r"D:\cadwork.dir\exe_2026\3d.x64\3d.exe")
+    exe_2027 = Path(r"D:\cadwork.dir\exe_2027\3d.x64\3d.exe")
+    paths = {1: exe_2026, 2: exe_2027, 3: None}
+    monkeypatch.setattr(registry, "image_pids", lambda name: frozenset(paths))
+    monkeypatch.setattr(registry, "image_path", lambda pid: paths[pid])
+    # 3 cannot be queried, so it is conservatively treated as a match.
+    assert registry.pids_running(exe_2026) == frozenset({1, 3})
+    assert registry.pids_running(exe_2027) == frozenset({2, 3})
