@@ -139,9 +139,16 @@ installed — that is how a mixed-version machine avoids loading the wrong
 `python314.dll` / Qt.
 
 The child process gets this version's folders prepended onto `PATH`, plus
-`CADWORK_EXE` / `CADWORK_LIB` (and TCL vars when `pclib.x64\TCL` exists).
-`open` **waits** until `3d.exe` exits. It errors if `3d.exe` is already
-running (a live instance keeps its loaded version and userprofile).
+`CADWORK_EXE` / `CADWORK_LIB`. When `pclib.x64\tcl\lib` exists it also sets
+`TCLLIBPATH` to that folder and `TCL_LIBRARY` / `TK_LIBRARY` to the `tcl8.6`
+/ `tk8.6` children that contain `init.tcl` / `tk.tcl` (legacy `TCL8.2` is
+used only if 8.6 is absent). That overlay is required because the process
+is `3d.exe`: Tcl's default search is relative to the executable
+(`exe_YYYY\lib\tcl8.6`, …) and never sees `pclib.x64\tcl\lib`, which is
+where cadwork ships the scripts tkinter / IDLE need.
+`open` **waits** until `3d.exe` exits. Other files can be opened while 3d is
+running; only `--usp` errors, and only when the same version is already running
+with a different userprofile (a live instance keeps the profile it loaded).
 
 ## Pointing Filemanager verbs at `ci_start.exe`
 
@@ -244,6 +251,11 @@ cadwork open "C:\Users\MichaelBrunner\Downloads\test_elements_walls.3d" `
 # pins HKCU CADWORK_USP for that 3d session (restored when 3d exits)
 ```
 
+`CADWORK_USP` is a single HKCU value shared by all versions. Launching another
+version with `--usp` while one is running rewrites it for the new session only —
+the running instance already loaded its profile. If `--usp` sessions overlap, each
+restores the value it found when that session's 3d exits, so the last one to exit decides what stays.
+
 `print` uses
 `--plotter` (→ `/P`) or `--laser` (→ `/L`), where frames are `A` (all) or a spec
 like `1-2;5;7`, and `--laser PDF` prints to the PDF driver.
@@ -251,11 +263,6 @@ like `1-2;5;7`, and `--laser PDF` prints to the PDF driver.
 ## Shell quoting
 
 Quote any value that contains a space, and — **in PowerShell** — any value with a
-`CADWORK_USP` is a single HKCU value shared by all versions. Launching another
-version with `--usp` while one is running rewrites it for the new session only —
-the running instance already loaded its profile. If `--usp` sessions overlap, each
-restores the value it found when that session's 3d exits, so the last one to exit decides what stays.
-
 `;` (PowerShell treats `;` as a statement separator):
 
 ```powershell

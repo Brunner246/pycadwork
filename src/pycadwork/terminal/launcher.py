@@ -197,12 +197,41 @@ def _unique_paths(paths: Sequence[str]) -> list[str]:
     return out
 
 
+def _tcl_dir_with(parent: Path, prefix: str, marker: str) -> Path | None:
+    """Newest ``prefix*`` child of ``parent`` that contains ``marker``.
+
+    Tcl finds ``init.tcl`` via ``TCL_LIBRARY``, not ``TCLLIBPATH``. Cadwork
+    2026 ships ``tcl8.6``; older trees used ``TCL8.2``. The marker file is
+    required so an empty version folder is never advertised.
+    """
+    if not parent.is_dir():
+        return None
+    prefix_l = prefix.lower()
+    matches: list[Path] = []
+    for child in parent.iterdir():
+        if not child.is_dir():
+            continue
+        if not child.name.lower().startswith(prefix_l):
+            continue
+        if (child / marker).is_file():
+            matches.append(child)
+    if not matches:
+        return None
+    return max(matches, key=lambda path: path.name.lower())
+
+
 def build_3d_runtime_env(exe_base: Path) -> dict[str, str]:
     """Child-process environment so this version's DLLs win over the registry.
 
     Mirrors ``launch_3d.ps1``: prepend this tree's satellite folders onto
     ``PATH``, set ``CADWORK_EXE`` / ``CADWORK_LIB``, and point TCL at this
     ``pclib`` when present. The parent process environment is not mutated.
+
+    ``TCL_LIBRARY`` must be the directory that contains ``init.tcl``
+    (``tcl8.6`` on current cadwork). The process executable is ``3d.exe``,
+    so Tcl's compiled-in search (``exe_YYYY/lib/tcl8.6``, …) never sees
+    ``pclib.x64\\tcl\\lib`` unless this overlay is set — which is what
+    tkinter / IDLE inside PythonConsole need.
     """
     base = Path(exe_base)
     pclib = base / "pclib.x64"
@@ -213,15 +242,15 @@ def build_3d_runtime_env(exe_base: Path) -> dict[str, str]:
         "CADWORK_LIB": str(pclib),
         "PATH": os.pathsep.join(_unique_paths([*extra, *existing])),
     }
-    tcl_lib = pclib / "TCL" / "LIB"
+    tcl_lib = pclib / "tcl" / "lib"
     if tcl_lib.is_dir():
         env["TCLLIBPATH"] = str(tcl_lib)
-        tcl82 = tcl_lib / "TCL8.2"
-        if tcl82.exists():
-            env["TCL_LIBRARY"] = str(tcl82)
-        tk82 = tcl_lib / "TK8.2"
-        if tk82.exists():
-            env["TK_LIBRARY"] = str(tk82)
+        tcl_library = _tcl_dir_with(tcl_lib, "tcl", "init.tcl")
+        if tcl_library is not None:
+            env["TCL_LIBRARY"] = str(tcl_library)
+        tk_library = _tcl_dir_with(tcl_lib, "tk", "tk.tcl")
+        if tk_library is not None:
+            env["TK_LIBRARY"] = str(tk_library)
     return env
 
 
